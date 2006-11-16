@@ -45,6 +45,15 @@ local Astrolabe = {};
 local WorldMapSize, MinimapSize;
 
 --------------------------------------------------------------------------------------------------------------
+-- Working Tables
+--------------------------------------------------------------------------------------------------------------
+
+Astrolabe.LastPlayerPosition = {};
+Astrolabe.MinimapIcons = {};
+Astrolabe.WorldMapIcons = {};
+
+
+--------------------------------------------------------------------------------------------------------------
 -- API
 --------------------------------------------------------------------------------------------------------------
 
@@ -59,12 +68,46 @@ function Astrolabe:PlaceIconOnMinimap( minimap, icon, continent, zone, xPos, yPo
 	self:argCheck(xPos, 6, "number");
 	self:argCheck(yPos, 7, "number");
 	
+	local lC, lZ, lx, ly = unpack(self.LastPlayerPosition);
+	local dist, xDist, yDist = self:ComputeDistance(lC, lZ, lx, ly, continent, zone, xPos, yPos);
+	if not ( dist ) then
+		--icon's position has no meaningful position relative to the player's current location
+		return false;
+	end
+	local iconData = self.MinimapIcons[icon];
+	if not ( iconData ) then
+		iconData = {
+			continent = continent,
+			zone = zone,
+			xPos = xPos,
+			yPos = yPos,
+			dist = dist,
+			xDist = xDist,
+			yDist = yDist,
+		};
+		self.MinimapIcons[icon] = iconData;
 	
+	else
+		iconData.continent = continent;
+		iconData.zone = zone;
+		iconData.xPos = xPos;
+		iconData.yPos = yPos;
+		iconData.dist = dist;
+		iconData.xDist = xDist;
+		iconData.yDist = yDist;
+	
+	end
+	
+	return true;
 end
 
 function Astrolabe:RemoveIconFromMinimap( minimap, icon )
-	
-	
+	if not ( self.MinimapIcons[icon] ) then
+		return false;
+	end
+	self.MinimapIcons[icon] = nil;
+	icon:Hide();
+	return true;
 end
 
 function Astrolabe:PlaceIconOnWorldMap( worldMapFrame, icon, continent, zone, xPos, yPos )
@@ -86,9 +129,9 @@ function Astrolabe:RemoveIconFromWorldMap( worldMapFrame, icon )
 	
 end
 
-local function getContPosition( contInfo, z, x, y )
+local function getContPosition( zoneData, z, x, y )
 	if ( z and z ~= 0 ) then
-		local zoneData = zoneData[z];
+		zoneData = zoneData[z];
 		x = x * zoneData.width + zoneData.xOffset;
 		y = y * zoneData.height + zoneData.yOffset;
 	else
@@ -99,15 +142,6 @@ local function getContPosition( contInfo, z, x, y )
 end
 
 function Astrolabe:ComputeDistance( c1, z1, x1, y1, c2, z2, x2, y2 )
-	self:argCheck(c1, 2, "number");
-	self:argCheck(z1, 3, "number", "nil");
-	self:argCheck(x1, 4, "number");
-	self:argCheck(y1, 5, "number");
-	self:argCheck(c2, 6, "number");
-	self:argCheck(z2, 7, "number", "nil");
-	self:argCheck(x2, 8, "number");
-	self:argCheck(y2, 9, "number");
-	
 	local dist, xDelta, yDelta;
 	if ( c1 == c2 and z1 == z2 ) then
 		-- points in the same zone
@@ -152,12 +186,134 @@ function Astrolabe:ComputeDistance( c1, z1, x1, y1, c2, z2, x2, y2 )
 	return dist, xDelta, yDelta;
 end
 
+function Astrolabe:SetMapToCurrentZone()
+	if ( self.onCurrentWorldMap ) then
+		return;
+	end
+	SetMapToCurrentZone();
+end
+
+function Astrolabe:GetCurrentPlayerPosition()
+	self:SetMapToCurrentZone();
+	local C, Z = GetCurrentMapContinent(), GetCurrentMapZone();
+	local x, y = GetPlayerMapPosition("player");
+	if ( x <= 0 and y <= 0 ) then
+		SetMapZoom(C);
+		Z = 0;
+		x, y = GetPlayerMapPosition("player");
+		if ( x <= 0 and y <= 0 ) then
+			-- we are in an instance or otherwise off the continent map
+			return;
+		end
+	end
+	return C, Z, x, y;
+end
+
 
 --------------------------------------------------------------------------------------------------------------
 -- Minimap Icon Placement Updates
 --------------------------------------------------------------------------------------------------------------
 
+local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, icon, dist, xDist, yDist )
+	--TODO: add support for non-circular minimaps
+	local mapDiameter;
+	if ( Astrolabe.minimapOutside ) then
+		mapDiameter = MinimapSize.outdoor[minimapZoom];
+	else
+		mapDiameter = MinimapSize.indoor[minimapZoom];
+	end
+	local mapRadius = mapDiameter / 2;
+	local xScale = mapDiameter / mapWidth;
+	local yScale = mapDiameter / mapHeight;
+	local iconDiameter = icon:GetWidth() * xScale;
+	
+	icon:ClearAllPoints();
+	if ( (dist + iconDiameter) > mapRadius ) then
+		-- position along the outside of the Minimap
+		local factor = (mapRadius - iconDiameter) / dist;
+		xDist = xDist * factor;
+		yDist = yDist * factor;
+	end
+	icon:SetPoint("CENTER", minimap, "CENTER", xDist/xScale, -yDist/yScale);
+end
 
+local lastZoom;
+
+function Astrolabe:UpdateMinimapIconPositions()
+	local C, Z, x, y = self:GetCurrentPlayerPosition();
+	if not ( C and Z and x and y ) then
+		self.processingFrame:Hide();
+	end
+	local Minimap = Minimap;
+	local lastPosition = self.LastPlayerPosition;
+	local lC, lZ, lx, ly = unpack(lastPosition);
+	--[[
+	if not ( lC and lZ and lx and ly ) then
+		self:CalculateMinimapIconPositions();
+		return;
+	end
+	--]]
+	if ( lC == C and lZ == Z and lx == x and ly == y ) then
+		-- player has not moved since the last update
+		if ( lastZoom ~= Minimap:GetZoom() ) then
+			local currentZoom = Minimap:GetZoom();
+			lastZoom = currentZoom;
+			local mapWidth = Minimap:GetWidth();
+			local mapHeight = Minimap:GetHeight();
+			for icon, data in pairs(self.MinimapIcons) do
+				placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, data.dist, data.xDist, data.yDist);
+			end
+		end
+		return;
+	end
+	local _, xDelta, yDelta = self:ComputeDistance(lC, lZ, lx, ly, C, Z, x, y);
+	local currentZoom = Minimap:GetZoom();
+	lastZoom = currentZoom;
+	local mapWidth = Minimap:GetWidth();
+	local mapHeight = Minimap:GetHeight();
+	for icon, data in pairs(self.MinimapIcons) do
+		local xDist = data.xDist - xDelta;
+		local yDist = data.yDist - yDelta;
+		local dist = sqrt(xDist*xDist + yDist*yDist);
+		placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, dist, xDist, yDist);
+		
+		data.dist = dist;
+		data.xDist = xDist;
+		data.yDist = yDist;
+	end
+	
+	lastPosition[1] = C;
+	lastPosition[2] = Z;
+	lastPosition[3] = x;
+	lastPosition[4] = y;
+end
+
+function Astrolabe:CalculateMinimapIconPositions()
+	local C, Z, x, y = self:GetCurrentPlayerPosition();
+	if not ( C and Z and x and y ) then
+		self.processingFrame:Hide();
+	end
+	
+	local currentZoom = Minimap:GetZoom();
+	lastZoom = currentZoom;
+	local Minimap = Minimap;
+	local mapWidth = Minimap:GetWidth();
+	local mapHeight = Minimap:GetHeight();
+	for icon, data in pairs(self.MinimapIcons) do
+		local dist, xDist, yDist = self:ComputeDistance(C, Z, x, y, data.continent, data.zone, data.xPos, data.yPos);
+		placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, dist, xDist, yDist);
+		
+		data.dist = dist;
+		data.xDist = xDist;
+		data.yDist = yDist;
+	end
+	
+	local lastPosition = self.LastPlayerPosition;
+	lastPosition[1] = C;
+	lastPosition[2] = Z;
+	lastPosition[3] = x;
+	lastPosition[4] = y;
+end
 
 
 --------------------------------------------------------------------------------------------------------------
@@ -172,11 +328,57 @@ end
 --------------------------------------------------------------------------------------------------------------
 
 function Astrolabe:OnEvent( frame, event )
+	if ( event == "MINIMAP_UPDATE_ZOOM" ) then
+		-- update minimap zoom scale
+		local Minimap = Minimap;
+		local curZoom = Minimap:GetZoom();
+		if ( GetCVar("minimapZoom") == GetCVar("minimapInsideZoom") ) then
+			if ( curZoom < 2 ) then
+				Minimap:SetZoom(curZoom + 1);
+			else
+				Minimap:SetZoom(curZoom - 1);
+			end
+		end
+		if ( GetCVar("minimapZoom")+0 == Minimap:GetZoom() ) then
+			self.minimapOutside = true;
+		else
+			self.minimapOutside = false;
+		end
+		Minimap:SetZoom(curZoom);
+		
+		self:CalculateMinimapIconPositions();
 	
+	elseif ( event == "WORLD_MAP_UPDATE" ) then
+		self.onCurrentWorldMap = false;
+	
+	elseif ( event == "PLAYER_LEAVING_WORLD" ) then
+		frame:Hide();
+		--dump all minimap icons
+		--TODO
+	
+	elseif ( event == "PLAYER_ENTERING_WORLD" ) then
+		frame:Show();
+	
+	elseif ( event == "ZONE_CHANGED_NEW_AREA" ) then
+		self.onCurrentWorldMap = false;
+		frame:Show();
+	
+	end
 end
 
+local updateTimer = 0;
+
 function Astrolabe:OnUpdate( frame, elapsed )
-	
+	updateTimer = updateTimer + elapsed;
+	if ( updateTimer < 0.2 ) then
+		return;
+	end
+	updateTimer = 0;
+	self:UpdateMinimapIconPositions();
+end
+
+function Astrolabe:OnShow( frame )
+	self:CalculateMinimapIconPositions();
 end
 
 
@@ -191,21 +393,30 @@ local function activate( self, oldLib, oldDeactivate )
 		frame = CreateFrame("Frame");
 		self.processingFrame = frame;
 	end
-	frame:SetParent("UIParent");
-	frame:Show();
+	frame:SetParent("Minimap");
+	frame:Hide();
 	frame:UnregisterAllEvents();
 	frame:RegisterEvent("MINIMAP_UPDATE_ZOOM");
 	frame:RegisterEvent("WORLD_MAP_UPDATE");
+	frame:RegisterEvent("PLAYER_LEAVING_WORLD");
+	frame:RegisterEvent("PLAYER_ENTERING_WORLD");
+	frame:RegisterEvent("ZONE_CHANGED_NEW_AREA");
 	frame:SetScript("OnEvent",
 		function( frame, event, ... )
-			self:OnEvent(self, event, ...);
+			self:OnEvent(frame, event, ...);
 		end
 	);
 	frame:SetScript("OnUpdate",
 		function( frame, elapsed )
-			self:OnUpdate(self, elapsed);
+			self:OnUpdate(frame, elapsed);
 		end
 	);
+	frame:SetScript("OnShow",
+		function( frame )
+			self:OnShow(frame);
+		end
+	);
+	frame:Show();
 	
 	if not ( self.ContinentList ) then
 		self.ContinentList = { GetMapContinents() };
