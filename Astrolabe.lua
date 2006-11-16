@@ -8,9 +8,28 @@ Inspired By: Gatherer by Norganna
 Website: http://esamynn.wowinterface.com/
 Documentation: 
 SVN: 
-Description: 
-             
-             
+Description:
+	This is a library for the World of Warcraft UI system to place
+	icons accurately on both the Minimap and the Worldmaps accurately
+	and maintain the accuracy of those positions.  
+
+License:
+
+Copyright (C) 2006  James Carrothers
+
+This library is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 2.1 of the License, or (at your option) any later version.
+
+This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public
+License along with this library; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 ]]
 
 local LIBRARY_VERSION_MAJOR = "Astrolabe"
