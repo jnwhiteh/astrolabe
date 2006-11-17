@@ -138,22 +138,37 @@ function Astrolabe:GetCurrentPlayerPosition()
 end
 
 
+--------------------------------------------------------------------------------------------------------------
+-- Working Table Cache System
+--------------------------------------------------------------------------------------------------------------
+
+local tableCache = {};
+tableCache["__mode"] = "v";
+setmetatable(tableCache, tableCache);
+
+local function GetWorkingTable( icon )
+	if ( tableCache[icon] ) then
+		return tableCache[icon];
+	else
+		local T = {};
+		tableCache[icon] = T;
+		return T;
+	end
+end
 
 
 --------------------------------------------------------------------------------------------------------------
 -- Minimap Icon Placement
 --------------------------------------------------------------------------------------------------------------
 
-function Astrolabe:PlaceIconOnMinimap( minimap, icon, continent, zone, xPos, yPos )
+function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 	-- check argument types
-	self:argCheck(minimap, 2, "table");
-	self:assert(minimap.GetZoom and minimap.GetWidth and minimap.GetHeight, "Usage Message");
-	self:argCheck(icon, 3, "table");
+	self:argCheck(icon, 2, "table");
 	self:assert(icon.SetPoint and icon.ClearAllPoints, "Usage Message");
-	self:argCheck(continent, 4, "number");
-	self:argCheck(zone, 5, "number", "nil");
-	self:argCheck(xPos, 6, "number");
-	self:argCheck(yPos, 7, "number");
+	self:argCheck(continent, 3, "number");
+	self:argCheck(zone, 4, "number", "nil");
+	self:argCheck(xPos, 5, "number");
+	self:argCheck(yPos, 6, "number");
 	
 	local lC, lZ, lx, ly = unpack(self.LastPlayerPosition);
 	local dist, xDist, yDist = self:ComputeDistance(lC, lZ, lx, ly, continent, zone, xPos, yPos);
@@ -163,38 +178,35 @@ function Astrolabe:PlaceIconOnMinimap( minimap, icon, continent, zone, xPos, yPo
 	end
 	local iconData = self.MinimapIcons[icon];
 	if not ( iconData ) then
-		iconData = {
-			continent = continent,
-			zone = zone,
-			xPos = xPos,
-			yPos = yPos,
-			dist = dist,
-			xDist = xDist,
-			yDist = yDist,
-		};
+		iconData = GetWorkingTable(icon);
 		self.MinimapIcons[icon] = iconData;
-	
-	else
-		iconData.continent = continent;
-		iconData.zone = zone;
-		iconData.xPos = xPos;
-		iconData.yPos = yPos;
-		iconData.dist = dist;
-		iconData.xDist = xDist;
-		iconData.yDist = yDist;
-	
 	end
+	iconData.continent = continent;
+	iconData.zone = zone;
+	iconData.xPos = xPos;
+	iconData.yPos = yPos;
+	iconData.dist = dist;
+	iconData.xDist = xDist;
+	iconData.yDist = yDist;
 	
 	return true;
 end
 
-function Astrolabe:RemoveIconFromMinimap( minimap, icon )
+function Astrolabe:RemoveIconFromMinimap( icon )
 	if not ( self.MinimapIcons[icon] ) then
 		return false;
 	end
 	self.MinimapIcons[icon] = nil;
 	icon:Hide();
 	return true;
+end
+
+function Astrolabe:RemoveAllMinimapIcons()
+	local minimapIcons = self.MinimapIcons
+	for k, v in pairs(minimapIcons) do
+		minimapIcons[k] = nil;
+		k:Hide();
+	end
 end
 
 local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, icon, dist, xDist, yDist )
@@ -208,7 +220,7 @@ local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, ic
 	local mapRadius = mapDiameter / 2;
 	local xScale = mapDiameter / mapWidth;
 	local yScale = mapDiameter / mapHeight;
-	local iconDiameter = icon:GetWidth() * xScale;
+	local iconDiameter = ((icon:GetWidth() / 2) + 3) * xScale;
 	
 	icon:ClearAllPoints();
 	if ( (dist + iconDiameter) > mapRadius ) then
@@ -302,7 +314,7 @@ end
 -- World Map Icon Placement Updates
 --------------------------------------------------------------------------------------------------------------
 
-function Astrolabe:PlaceIconOnWorldMap( worldMapFrame, icon, continent, zone, xPos, yPos )
+function Astrolabe:PlaceIconOnWorldMap( worldMapFrame, icon, continent, zone, xPos, yPos, keepOnMapChange )
 	-- check argument types
 	self:argCheck(worldMapFrame, 2, "table");
 	self:assert(worldMapFrame.GetWidth and worldMapFrame.GetHeight, "Usage Message");
@@ -320,6 +332,8 @@ function Astrolabe:RemoveIconFromWorldMap( worldMapFrame, icon )
 	
 	
 end
+
+function Astrolabe:UpdateWorldMapIcons
 
 
 --------------------------------------------------------------------------------------------------------------
@@ -346,17 +360,20 @@ function Astrolabe:OnEvent( frame, event )
 		Minimap:SetZoom(curZoom);
 		
 		-- re-calculate all Minimap Icon positions
-		self:CalculateMinimapIconPositions();
+		if ( frame:IsVisible() ) then
+			self:CalculateMinimapIconPositions();
+		end
 	
 	elseif ( event == "WORLD_MAP_UPDATE" ) then
 		self.onCurrentWorldMap = false;
 	
 	elseif ( event == "PLAYER_LEAVING_WORLD" ) then
 		frame:Hide();
-		--dump all minimap icons
-		--TODO
+		self.onCurrentWorldMap = false;
+		self:RemoveAllMinimapIcons(); --dump all minimap icons
 	
 	elseif ( event == "PLAYER_ENTERING_WORLD" ) then
+		self.onCurrentWorldMap = false;
 		frame:Show();
 	
 	elseif ( event == "ZONE_CHANGED_NEW_AREA" ) then
