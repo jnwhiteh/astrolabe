@@ -53,6 +53,10 @@ Astrolabe.MinimapIcons = {};
 Astrolabe.WorldMapIcons = {};
 
 
+Astrolabe.MinimapUpdateTime = 0.2;
+Astrolabe.UpdateTimer = 0;
+
+
 --------------------------------------------------------------------------------------------------------------
 -- General Uility Functions
 --------------------------------------------------------------------------------------------------------------
@@ -80,7 +84,7 @@ function Astrolabe:ComputeDistance( c1, z1, x1, y1, c2, z2, x2, y2 )
 		xDelta = (x2 - x1) * zoneData.width;
 		yDelta = (y2 - y1) * zoneData.height;
 	
-	elseif ( c1 == c1 ) then
+	elseif ( c1 == c2 ) then
 		-- points on the same continent
 		local zoneData = WorldMapSize[c1];
 		x1, y1 = getContPosition(zoneData, z1, x1, y1);
@@ -88,7 +92,7 @@ function Astrolabe:ComputeDistance( c1, z1, x1, y1, c2, z2, x2, y2 )
 		xDelta = (x2 - x1);
 		yDelta = (y2 - y1);
 	
-	else
+	elseif ( c1 and c2 ) then
 		local cont1 = WorldMapSize[c1];
 		local cont2 = WorldMapSize[c2];
 		if ( cont1.parentContinent == cont2.parentContinent ) then
@@ -119,6 +123,7 @@ function Astrolabe:SetMapToCurrentZone()
 		return;
 	end
 	SetMapToCurrentZone();
+	self.onCurrentWorldMap = true;
 end
 
 function Astrolabe:GetCurrentPlayerPosition()
@@ -188,6 +193,10 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 	iconData.dist = dist;
 	iconData.xDist = xDist;
 	iconData.yDist = yDist;
+	
+	--show the new icon and force a placement update on the next screen draw
+	icon:Show()
+	self.UpdateTimer = 0;
 	
 	return true;
 end
@@ -260,7 +269,7 @@ function Astrolabe:UpdateMinimapIconPositions()
 		end
 		return;
 	end
-	local _, xDelta, yDelta = self:ComputeDistance(lC, lZ, lx, ly, C, Z, x, y);
+	local dist, xDelta, yDelta = self:ComputeDistance(lC, lZ, lx, ly, C, Z, x, y);
 	local currentZoom = Minimap:GetZoom();
 	lastZoom = currentZoom;
 	local mapWidth = Minimap:GetWidth();
@@ -333,7 +342,9 @@ function Astrolabe:RemoveIconFromWorldMap( worldMapFrame, icon )
 	
 end
 
-function Astrolabe:UpdateWorldMapIcons
+function Astrolabe:UpdateWorldMapIcons()
+	
+end
 
 
 --------------------------------------------------------------------------------------------------------------
@@ -383,14 +394,13 @@ function Astrolabe:OnEvent( frame, event )
 	end
 end
 
-local updateTimer = 0;
-
 function Astrolabe:OnUpdate( frame, elapsed )
-	updateTimer = updateTimer + elapsed;
-	if ( updateTimer < 0.2 ) then
+	local updateTimer = self.UpdateTimer - elapsed;
+	if ( updateTimer > 0 ) then
+		self.UpdateTimer = updateTimer;
 		return;
 	end
-	updateTimer = 0;
+	self.UpdateTimer = self.MinimapUpdateTime;
 	self:UpdateMinimapIconPositions();
 end
 
@@ -447,7 +457,17 @@ local function activate( self, oldLib, oldDeactivate )
 		end
 	end
 	
-	_G[LIBRARY_VERSION_MAJOR] = self
+	_G[LIBRARY_VERSION_MAJOR] = self;
+	
+	-- this hook is unfortunately needed currently to prevent multiple
+	-- addons that use this method from "fighting" with eachother
+	if not ( self.old_SetMapToCurrentZone ) then
+		self.old_SetMapToCurrentZone = SetMapToCurrentZone;
+		function SetMapToCurrentZone()
+			self.old_SetMapToCurrentZone();
+			self.onCurrentWorldMap = true;
+		end
+	end
 end
 
 AceLibrary:Register(Astrolabe, LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR, activate)
@@ -823,11 +843,14 @@ WorldMapSize = {
 	},
 }
 
+local zeroData = { xOffset = 0, height = 0, yOffset = 0, width = 0 };
 for continent, zones in pairs(Astrolabe.ContinentList) do
 	local mapData = WorldMapSize[continent];
 	for index, mapName in pairs(zones) do
 		if not ( mapData.zoneData[mapName] ) then
-			---WE HAVE A PROBLEM!!!
+			--WE HAVE A PROBLEM!!!
+			ChatFrame1:AddMessage("Astrolabe is missing data for "..select(index, GetMapZones(continent))..".");
+			mapData.zoneData[mapName] = zeroData;
 		end
 		mapData[index] = mapData.zoneData[mapName];
 		mapData.zoneData[mapName] = nil;
