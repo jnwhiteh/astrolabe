@@ -125,12 +125,15 @@ end
 function Astrolabe:TranslateWorldMapPosition( C, Z, xPos, yPos, nC, nZ )
 	Z = Z or 0;
 	nZ = nZ or 0;
+	if ( nC < 0 ) then
+		return;
+	end
 	
 	local zoneData;
 	if ( C == nC and Z == nZ ) then
 		return xPos, yPos;
 	
-	elseif ( c1 == c2 ) then
+	elseif ( C == nC ) then
 		-- points on the same continent
 		zoneData = WorldMapSize[C];
 		xPos, yPos = getContPosition(zoneData, Z, xPos, yPos);
@@ -147,9 +150,9 @@ function Astrolabe:TranslateWorldMapPosition( C, Z, xPos, yPos, nC, nZ )
 		xPos, yPos = getContPosition(zoneData, Z, xPos, yPos);
 		if ( C ~= parentContinent ) then
 			-- translate up to world map if we aren't there already
-			zoneData = WorldMapSize[parentContinent];
 			xPos = xPos + zoneData.xOffset;
 			yPos = yPos + zoneData.yOffset;
+			zoneData = WorldMapSize[parentContinent];
 		end
 		if ( nC ~= parentContinent ) then
 			--translate down to the new continent
@@ -385,7 +388,7 @@ function Astrolabe:PlaceIconOnWorldMap( worldMapFrame, icon, continent, zone, xP
 	local mapIcons = self.WorldMapIcons[worldMapFrame];
 	if not ( mapIcons ) then
 		mapIcons = {};
-		self.MinimapIcons[icon] = iconData;
+		self.WorldMapIcons[worldMapFrame] = mapIcons;
 	end
 	local iconData = mapIcons[icon];
 	if not ( iconData ) then
@@ -400,7 +403,7 @@ function Astrolabe:PlaceIconOnWorldMap( worldMapFrame, icon, continent, zone, xP
 		iconData.yPos = yPos;
 		iconData.keepOnMapChange = keepOnMapChange;
 		icon:ClearAllPoints();
-		icon:SetPoint("CENTER", worldMapFrame, "TOPLEFT", nX * mapFrame:GetWidth(), -nY * mapFrame:GetHeight());
+		icon:SetPoint("CENTER", worldMapFrame, "TOPLEFT", nX * worldMapFrame:GetWidth(), -nY * worldMapFrame:GetHeight());
 		icon:Show()
 	
 	elseif ( keepOnMapChange ) then
@@ -451,6 +454,8 @@ function Astrolabe:UpdateWorldMapIcons()
 			end
 		end
 	end
+	self.LastWorldMap[1] = C;
+	self.LastWorldMap[2] = Z;
 end
 
 
