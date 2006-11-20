@@ -50,6 +50,7 @@ local WorldMapSize, MinimapSize;
 
 Astrolabe.LastPlayerPosition = {};
 Astrolabe.MinimapIcons = {};
+Astrolabe.LastWorldMap = {};
 Astrolabe.WorldMapIcons = {};
 
 
@@ -62,7 +63,7 @@ Astrolabe.UpdateTimer = 0;
 --------------------------------------------------------------------------------------------------------------
 
 local function getContPosition( zoneData, z, x, y )
-	if ( z and z ~= 0 ) then
+	if ( z ~= 0 ) then
 		zoneData = zoneData[z];
 		x = x * zoneData.width + zoneData.xOffset;
 		y = y * zoneData.height + zoneData.yOffset;
@@ -74,11 +75,14 @@ local function getContPosition( zoneData, z, x, y )
 end
 
 function Astrolabe:ComputeDistance( c1, z1, x1, y1, c2, z2, x2, y2 )
+	z1 = z1 or 0;
+	z2 = z2 or 0;
+	
 	local dist, xDelta, yDelta;
 	if ( c1 == c2 and z1 == z2 ) then
 		-- points in the same zone
 		local zoneData = WorldMapSize[c1];
-		if ( z1 and z1 ~= 0 ) then
+		if ( z1 ~= 0 ) then
 			zoneData = zoneData[z1];
 		end
 		xDelta = (x2 - x1) * zoneData.width;
@@ -107,8 +111,8 @@ function Astrolabe:ComputeDistance( c1, z1, x1, y1, c2, z2, x2, y2 )
 				y2 = y2 + cont2.yOffset;
 			end
 			
-			xDelta = (x2 - x1) * zoneData.width;
-			yDelta = (y2 - y1) * zoneData.height;
+			xDelta = x2 - x1;
+			yDelta = y2 - y1;
 		end
 	
 	end
@@ -118,30 +122,70 @@ function Astrolabe:ComputeDistance( c1, z1, x1, y1, c2, z2, x2, y2 )
 	return dist, xDelta, yDelta;
 end
 
-function Astrolabe:SetMapToCurrentZone()
-	if ( self.onCurrentWorldMap ) then
+function Astrolabe:TranslateWorldMapPosition( C, Z, xPos, yPos, nC, nZ )
+	Z = Z or 0;
+	nZ = nZ or 0;
+	
+	local zoneData;
+	if ( C == nC and Z == nZ ) then
+		return xPos, yPos;
+	
+	elseif ( c1 == c2 ) then
+		-- points on the same continent
+		zoneData = WorldMapSize[C];
+		xPos, yPos = getContPosition(zoneData, Z, xPos, yPos);
+		if ( nZ ~= 0 ) then
+			zoneData = WorldMapSize[C][nZ];
+			xPos = xPos - zoneData.xOffset;
+			yPos = yPos - zoneData.yOffset;
+		end
+	
+	elseif ( C and nC ) and ( WorldMapSize[C].parentContinent == WorldMapSize[nC].parentContinent ) then
+		-- different continents, same world
+		zoneData = WorldMapSize[C];
+		local parentContinent = zoneData.parentContinent;
+		xPos, yPos = getContPosition(zoneData, Z, xPos, yPos);
+		if ( C ~= parentContinent ) then
+			-- translate up to world map if we aren't there already
+			zoneData = WorldMapSize[parentContinent];
+			xPos = xPos + zoneData.xOffset;
+			yPos = yPos + zoneData.yOffset;
+		end
+		if ( nC ~= parentContinent ) then
+			--translate down to the new continent
+			zoneData = WorldMapSize[nC];
+			xPos = xPos - zoneData.xOffset;
+			yPos = yPos - zoneData.yOffset;
+			if ( nZ ~= 0 ) then
+				zoneData = zoneData[nZ];
+				xPos = xPos - zoneData.xOffset;
+				yPos = yPos - zoneData.yOffset;
+			end
+		end
+	
+	else
 		return;
 	end
-	SetMapToCurrentZone();
-	self.onCurrentWorldMap = true;
+	
+	return (xPos / zoneData.width), (yPos / zoneData.height);
 end
 
 function Astrolabe:GetCurrentPlayerPosition()
-	self:SetMapToCurrentZone();
-	local C, Z = GetCurrentMapContinent(), GetCurrentMapZone();
 	local x, y = GetPlayerMapPosition("player");
 	if ( x <= 0 and y <= 0 ) then
-		SetMapZoom(C);
-		Z = 0;
+		SetMapToCurrentZone();
 		x, y = GetPlayerMapPosition("player");
 		if ( x <= 0 and y <= 0 ) then
-			-- we are in an instance or otherwise off the continent map
-			return;
+			SetMapZoom(GetCurrentMapContinent());
+			x, y = GetPlayerMapPosition("player");
+			if ( x <= 0 and y <= 0 ) then
+				-- we are in an instance or otherwise off the continent map
+				return;
+			end
 		end
 	end
-	return C, Z, x, y;
+	return GetCurrentMapContinent(), GetCurrentMapZone(), x, y;
 end
-
 
 --------------------------------------------------------------------------------------------------------------
 -- Working Table Cache System
@@ -179,7 +223,7 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 	local dist, xDist, yDist = self:ComputeDistance(lC, lZ, lx, ly, continent, zone, xPos, yPos);
 	if not ( dist ) then
 		--icon's position has no meaningful position relative to the player's current location
-		return false;
+		return -1;
 	end
 	local iconData = self.MinimapIcons[icon];
 	if not ( iconData ) then
@@ -198,16 +242,16 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 	icon:Show()
 	self.UpdateTimer = 0;
 	
-	return true;
+	return 0;
 end
 
 function Astrolabe:RemoveIconFromMinimap( icon )
 	if not ( self.MinimapIcons[icon] ) then
-		return false;
+		return 1;
 	end
 	self.MinimapIcons[icon] = nil;
 	icon:Hide();
-	return true;
+	return 0;
 end
 
 function Astrolabe:RemoveAllMinimapIcons()
@@ -334,16 +378,79 @@ function Astrolabe:PlaceIconOnWorldMap( worldMapFrame, icon, continent, zone, xP
 	self:argCheck(xPos, 6, "number");
 	self:argCheck(yPos, 7, "number");
 	
+	local C, Z = GetCurrentMapContinent(), GetCurrentMapZone();
+	local nX, nY = self:TranslateWorldMapPosition(continent, zone, xPos, yPos, C, Z);
 	
+	-- get data table
+	local mapIcons = self.WorldMapIcons[worldMapFrame];
+	if not ( mapIcons ) then
+		mapIcons = {};
+		self.MinimapIcons[icon] = iconData;
+	end
+	local iconData = mapIcons[icon];
+	if not ( iconData ) then
+		iconData = GetWorkingTable(icon);
+		mapIcons[icon] = iconData;
+	end
+	
+	if ( nX and nY and (0 < nX and nX <= 1) and (0 < nY and nY <= 1) ) then
+		iconData.continent = continent;
+		iconData.zone = zone;
+		iconData.xPos = xPos;
+		iconData.yPos = yPos;
+		iconData.keepOnMapChange = keepOnMapChange;
+		icon:ClearAllPoints();
+		icon:SetPoint("CENTER", worldMapFrame, "TOPLEFT", nX * mapFrame:GetWidth(), -nY * mapFrame:GetHeight());
+		icon:Show()
+	
+	elseif ( keepOnMapChange ) then
+		iconData.continent = continent;
+		iconData.zone = zone;
+		iconData.xPos = xPos;
+		iconData.yPos = yPos;
+		iconData.keepOnMapChange = keepOnMapChange;
+		icon:Hide();
+	
+	else
+		mapIcons[icon] = nil;
+		return 1;
+	
+	end
 end
 
 function Astrolabe:RemoveIconFromWorldMap( worldMapFrame, icon )
-	
-	
+	local icons = self.WorldMapIcons[worldMapFrame];
+	if not ( icons and icons[icon] ) then
+		return 1;
+	end
+	icons[icon] = nil;
+	icon:Hide();
+	return 0;
 end
 
 function Astrolabe:UpdateWorldMapIcons()
-	
+	local lC, lZ = unpack(self.LastWorldMap);
+	local C, Z = GetCurrentMapContinent(), GetCurrentMapZone();
+	if ( C == lC and Z == lZ ) then
+		-- map didn't actually change
+		return;
+	end
+	for mapFrame, icons in pairs(self.WorldMapIcons) do
+		local width, height = mapFrame:GetWidth(), mapFrame:GetHeight();
+		for icon, data in pairs(icons) do
+			local nX, nY = self:TranslateWorldMapPosition(data.continent, data.zone, data.xPos, data.yPos, C, Z);
+			if ( nX and nY and (0 < nX and nX <= 1) and (0 < nY and nY <= 1) ) then
+				icon:ClearAllPoints();
+				icon:SetPoint("CENTER", mapFrame, "TOPLEFT", nX * width, -nY * height);
+				icon:Show()
+			else
+				if not ( data.keepOnMapChange ) then
+					icons[icon] = nil;
+				end
+				icon:Hide();
+			end
+		end
+	end
 end
 
 
@@ -376,19 +483,16 @@ function Astrolabe:OnEvent( frame, event )
 		end
 	
 	elseif ( event == "WORLD_MAP_UPDATE" ) then
-		self.onCurrentWorldMap = false;
+		Astrolabe:UpdateWorldMapIcons();
 	
 	elseif ( event == "PLAYER_LEAVING_WORLD" ) then
 		frame:Hide();
-		self.onCurrentWorldMap = false;
 		self:RemoveAllMinimapIcons(); --dump all minimap icons
 	
 	elseif ( event == "PLAYER_ENTERING_WORLD" ) then
-		self.onCurrentWorldMap = false;
 		frame:Show();
 	
 	elseif ( event == "ZONE_CHANGED_NEW_AREA" ) then
-		self.onCurrentWorldMap = false;
 		frame:Show();
 	
 	end
@@ -458,16 +562,6 @@ local function activate( self, oldLib, oldDeactivate )
 	end
 	
 	_G[LIBRARY_VERSION_MAJOR] = self;
-	
-	-- this hook is unfortunately needed currently to prevent multiple
-	-- addons that use this method from "fighting" with eachother
-	if not ( self.old_SetMapToCurrentZone ) then
-		self.old_SetMapToCurrentZone = SetMapToCurrentZone;
-		function SetMapToCurrentZone()
-			self.old_SetMapToCurrentZone();
-			self.onCurrentWorldMap = true;
-		end
-	end
 end
 
 AceLibrary:Register(Astrolabe, LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR, activate)
@@ -509,6 +603,7 @@ WorldMapSize = {
 	},
 	-- Kalimdor
 	[1] = {
+		parentContinent = 0,
 		height = 24532.39670836129,
 		width = 36798.56388065484,
 		height = 24532.39670836129,
