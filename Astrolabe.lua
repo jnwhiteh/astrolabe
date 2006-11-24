@@ -35,9 +35,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 local LIBRARY_VERSION_MAJOR = "Astrolabe"
 local LIBRARY_VERSION_MINOR = "$Revision$"
 
-local _G = getfenv(0)
-local previous = _G[LIBRARY_VERSION_MAJOR]
-if previous and not previous:IsNewVersion(LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR) then return end
+if not AceLibrary then error(LIBRARY_VERSION_MAJOR .. " requires AceLibrary.") end
+if not AceLibrary:IsNewVersion(LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR) then return end
 
 local Astrolabe = {};
 
