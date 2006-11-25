@@ -49,8 +49,6 @@ local WorldMapSize, MinimapSize;
 
 Astrolabe.LastPlayerPosition = {};
 Astrolabe.MinimapIcons = {};
-Astrolabe.LastWorldMap = {};
-Astrolabe.WorldMapIcons = {};
 
 
 Astrolabe.MinimapUpdateTime = 0.2;
@@ -366,10 +364,10 @@ end
 
 
 --------------------------------------------------------------------------------------------------------------
--- World Map Icon Placement Updates
+-- World Map Icon Placement
 --------------------------------------------------------------------------------------------------------------
 
-function Astrolabe:PlaceIconOnWorldMap( worldMapFrame, icon, continent, zone, xPos, yPos, keepOnMapChange )
+function Astrolabe:PlaceIconOnWorldMap( worldMapFrame, icon, continent, zone, xPos, yPos )
 	-- check argument types
 	self:argCheck(worldMapFrame, 2, "table");
 	self:assert(worldMapFrame.GetWidth and worldMapFrame.GetHeight, "Usage Message");
@@ -383,78 +381,11 @@ function Astrolabe:PlaceIconOnWorldMap( worldMapFrame, icon, continent, zone, xP
 	local C, Z = GetCurrentMapContinent(), GetCurrentMapZone();
 	local nX, nY = self:TranslateWorldMapPosition(continent, zone, xPos, yPos, C, Z);
 	
-	-- get data table
-	local mapIcons = self.WorldMapIcons[worldMapFrame];
-	if not ( mapIcons ) then
-		mapIcons = {};
-		self.WorldMapIcons[worldMapFrame] = mapIcons;
-	end
-	local iconData = mapIcons[icon];
-	if not ( iconData ) then
-		iconData = GetWorkingTable(icon);
-		mapIcons[icon] = iconData;
-	end
-	
 	if ( nX and nY and (0 < nX and nX <= 1) and (0 < nY and nY <= 1) ) then
-		iconData.continent = continent;
-		iconData.zone = zone;
-		iconData.xPos = xPos;
-		iconData.yPos = yPos;
-		iconData.keepOnMapChange = keepOnMapChange;
 		icon:ClearAllPoints();
 		icon:SetPoint("CENTER", worldMapFrame, "TOPLEFT", nX * worldMapFrame:GetWidth(), -nY * worldMapFrame:GetHeight());
-		icon:Show()
-	
-	elseif ( keepOnMapChange ) then
-		iconData.continent = continent;
-		iconData.zone = zone;
-		iconData.xPos = xPos;
-		iconData.yPos = yPos;
-		iconData.keepOnMapChange = keepOnMapChange;
-		icon:Hide();
-	
-	else
-		mapIcons[icon] = nil;
-		return 1;
-	
 	end
-end
-
-function Astrolabe:RemoveIconFromWorldMap( worldMapFrame, icon )
-	local icons = self.WorldMapIcons[worldMapFrame];
-	if not ( icons and icons[icon] ) then
-		return 1;
-	end
-	icons[icon] = nil;
-	icon:Hide();
-	return 0;
-end
-
-function Astrolabe:UpdateWorldMapIcons()
-	local lC, lZ = unpack(self.LastWorldMap);
-	local C, Z = GetCurrentMapContinent(), GetCurrentMapZone();
-	if ( C == lC and Z == lZ ) then
-		-- map didn't actually change
-		return;
-	end
-	for mapFrame, icons in pairs(self.WorldMapIcons) do
-		local width, height = mapFrame:GetWidth(), mapFrame:GetHeight();
-		for icon, data in pairs(icons) do
-			local nX, nY = self:TranslateWorldMapPosition(data.continent, data.zone, data.xPos, data.yPos, C, Z);
-			if ( nX and nY and (0 < nX and nX <= 1) and (0 < nY and nY <= 1) ) then
-				icon:ClearAllPoints();
-				icon:SetPoint("CENTER", mapFrame, "TOPLEFT", nX * width, -nY * height);
-				icon:Show()
-			else
-				if not ( data.keepOnMapChange ) then
-					icons[icon] = nil;
-				end
-				icon:Hide();
-			end
-		end
-	end
-	self.LastWorldMap[1] = C;
-	self.LastWorldMap[2] = Z;
+	return nX, nY;
 end
 
 
@@ -485,9 +416,6 @@ function Astrolabe:OnEvent( frame, event )
 		if ( frame:IsVisible() ) then
 			self:CalculateMinimapIconPositions();
 		end
-	
-	elseif ( event == "WORLD_MAP_UPDATE" ) then
-		Astrolabe:UpdateWorldMapIcons();
 	
 	elseif ( event == "PLAYER_LEAVING_WORLD" ) then
 		frame:Hide();
@@ -532,7 +460,6 @@ local function activate( self, oldLib, oldDeactivate )
 	frame:Hide();
 	frame:UnregisterAllEvents();
 	frame:RegisterEvent("MINIMAP_UPDATE_ZOOM");
-	frame:RegisterEvent("WORLD_MAP_UPDATE");
 	frame:RegisterEvent("PLAYER_LEAVING_WORLD");
 	frame:RegisterEvent("PLAYER_ENTERING_WORLD");
 	frame:RegisterEvent("ZONE_CHANGED_NEW_AREA");
