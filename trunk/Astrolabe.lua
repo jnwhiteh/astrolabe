@@ -32,7 +32,7 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 ]]
 
-local LIBRARY_VERSION_MAJOR = "Astrolabe"
+local LIBRARY_VERSION_MAJOR = "Astrolabe-0.2"
 local LIBRARY_VERSION_MINOR = "$Revision$"
 
 if not AceLibrary then error(LIBRARY_VERSION_MAJOR .. " requires AceLibrary.") end
@@ -491,8 +491,6 @@ local function activate( self, oldLib, oldDeactivate )
 			end
 		end
 	end
-	
-	_G[LIBRARY_VERSION_MAJOR] = self;
 end
 
 AceLibrary:Register(Astrolabe, LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR, activate)
