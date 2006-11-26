@@ -360,6 +360,13 @@ function Astrolabe:CalculateMinimapIconPositions()
 	lastPosition[4] = y;
 end
 
+function Astrolabe:GetDistanceToIcon( icon )
+	local data = Astrolabe.MinimapIcons[icon];
+	if ( data ) then
+		return data.dist, data.xDist, data.yDist;
+	end
+end
+
 
 --------------------------------------------------------------------------------------------------------------
 -- World Map Icon Placement
