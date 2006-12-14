@@ -2,7 +2,7 @@
 Name: Astrolabe
 Revision: $Rev$
 $Date$
-Author(s): Esamynn (jcarrothers@gmail.com)
+Author(s): Esamynn (esamynn@wowinterface.com)
 Inspired By: Gatherer by Norganna
              MapLibrary by Kristofer Karlsson (krka@kth.se)
 Website: http://esamynn.wowinterface.com/
