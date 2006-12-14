@@ -174,6 +174,7 @@ end
 function Astrolabe:GetCurrentPlayerPosition()
 	local x, y = GetPlayerMapPosition("player");
 	if ( x <= 0 and y <= 0 ) then
+		local lastCont, lastZone = GetCurrentMapContinent(), GetCurrentMapZone();
 		SetMapToCurrentZone();
 		x, y = GetPlayerMapPosition("player");
 		if ( x <= 0 and y <= 0 ) then
@@ -184,6 +185,11 @@ function Astrolabe:GetCurrentPlayerPosition()
 				return;
 			end
 		end
+		local C, Z = GetCurrentMapContinent(), GetCurrentMapZone();
+		if ( C ~= lastCont or Z ~= lastZone ) then
+			SetMapZoom(lastCont, lastZone); --set map zoom back to what it was before
+		end
+		return C, Z, x, y;
 	end
 	return GetCurrentMapContinent(), GetCurrentMapZone(), x, y;
 end
@@ -446,6 +452,13 @@ function Astrolabe:OnUpdate( frame, elapsed )
 end
 
 function Astrolabe:OnShow( frame )
+	-- set the world map to a zoom with a valid player position
+	local C, Z = Astrolabe:GetCurrentPlayerPosition();
+	if ( C ) then
+		SetMapZoom(C, Z);
+	end
+
+	-- re-calculate minimap icon positions
 	self:CalculateMinimapIconPositions();
 end
 
@@ -459,10 +472,10 @@ local function activate( self, oldLib, oldDeactivate )
 	local frame = self.processingFrame;
 	if not ( frame ) then
 		frame = CreateFrame("Frame");
+		frame:Hide();
 		self.processingFrame = frame;
 	end
 	frame:SetParent("Minimap");
-	frame:Hide();
 	frame:UnregisterAllEvents();
 	frame:RegisterEvent("MINIMAP_UPDATE_ZOOM");
 	frame:RegisterEvent("PLAYER_LEAVING_WORLD");
@@ -483,7 +496,6 @@ local function activate( self, oldLib, oldDeactivate )
 			self:OnShow(frame);
 		end
 	);
-	frame:Show();
 	
 	if not ( self.ContinentList ) then
 		self.ContinentList = { GetMapContinents() };
