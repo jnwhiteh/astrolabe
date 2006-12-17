@@ -32,6 +32,9 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 ]]
 
+-- WARNING!!!
+-- DO NOT MAKE CHANGES TO THIS LIBRARY WITHOUT FIRST CHANGING THE LIBRARY_VERSION_MAJOR
+-- STRING (to something unique) OR ELSE YOU MAY BREAK OTHER ADDONS THAT USE THIS LIBRARY!!!
 local LIBRARY_VERSION_MAJOR = "Astrolabe-0.2"
 local LIBRARY_VERSION_MINOR = "$Revision$"
 
@@ -937,7 +940,10 @@ WorldMapSize = {
 	},
 }
 
-local zeroData = { xOffset = 0, height = 0, yOffset = 0, width = 0 };
+local zeroData = { xOffset = 0, height = 0, yOffset = 0, width = 0, __index = function() return zeroData end };
+setmetatable(zeroData, zeroData);
+setmetatable(WorldMapSize, zeroData);
+
 for continent, zones in pairs(Astrolabe.ContinentList) do
 	local mapData = WorldMapSize[continent];
 	for index, mapName in pairs(zones) do
