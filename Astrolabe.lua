@@ -50,7 +50,7 @@ local WorldMapSize, MinimapSize;
 -- Working Tables and Config Constants
 --------------------------------------------------------------------------------------------------------------
 
-Astrolabe.LastPlayerPosition = {};
+Astrolabe.LastPlayerPosition = { 0, 0, 0, 0 };
 Astrolabe.MinimapIcons = {};
 
 
@@ -76,6 +76,19 @@ local function getContPosition( zoneData, z, x, y )
 end
 
 function Astrolabe:ComputeDistance( c1, z1, x1, y1, c2, z2, x2, y2 )
+	--[[
+	self:argCheck(c1, 2, "number");
+	self:assert(c1 >= 0, "ComputeDistance: Illegal continent index to c1: "..c1);
+	self:argCheck(z1, 3, "number", "nil");
+	self:argCheck(x1, 4, "number");
+	self:argCheck(y1, 5, "number");
+	self:argCheck(c2, 6, "number");
+	self:assert(c2 >= 0, "ComputeDistance: Illegal continent index to c2: "..c2);
+	self:argCheck(z2, 7, "number", "nil");
+	self:argCheck(x2, 8, "number");
+	self:argCheck(y2, 9, "number");
+	--]]
+	
 	z1 = z1 or 0;
 	z2 = z2 or 0;
 	
@@ -299,8 +312,9 @@ end
 local lastZoom;
 function Astrolabe:UpdateMinimapIconPositions()
 	local C, Z, x, y = self:GetCurrentPlayerPosition();
-	if not ( C and Z and x and y ) then
+	if not ( C and C >= 0 ) then
 		self.processingFrame:Hide();
+		return;
 	end
 	local Minimap = Minimap;
 	local lastPosition = self.LastPlayerPosition;
@@ -344,8 +358,9 @@ end
 
 function Astrolabe:CalculateMinimapIconPositions()
 	local C, Z, x, y = self:GetCurrentPlayerPosition();
-	if not ( C and Z and x and y ) then
+	if not ( C and C >= 0 ) then
 		self.processingFrame:Hide();
+		return;
 	end
 	
 	local currentZoom = Minimap:GetZoom();
@@ -940,7 +955,8 @@ WorldMapSize = {
 	},
 }
 
-local zeroData = { xOffset = 0, height = 0, yOffset = 0, width = 0, __index = function() return zeroData end };
+local zeroData;
+zeroData = { xOffset = 0, height = 0, yOffset = 0, width = 0, __index = function() return zeroData end };
 setmetatable(zeroData, zeroData);
 setmetatable(WorldMapSize, zeroData);
 
