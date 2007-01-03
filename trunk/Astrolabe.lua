@@ -566,7 +566,7 @@ WorldMapSize = {
 		width = 44531.82907938571,
 	},
 	-- Kalimdor
-	[1] = {
+	{ --[1]
 		parentContinent = 0,
 		height = 24532.39670836129,
 		width = 36798.56388065484,
@@ -720,7 +720,7 @@ WorldMapSize = {
 		},
 	},
 	-- Eastern Kingdoms
-	[2] = {
+	{ --[2]
 		parentContinent = 0,
 		height = 25098.84390074281,
 		width = 37649.15159852673,
@@ -898,7 +898,7 @@ WorldMapSize = {
 		},
 	},
 	-- Outland
-	[3] = {
+	{ --[3]
 		parentContinent = 3,
 		height = 11642.3552270912,
 		width = 17463.5328406368,
