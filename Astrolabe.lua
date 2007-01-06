@@ -472,10 +472,12 @@ end
 function Astrolabe:OnShow( frame )
 	-- set the world map to a zoom with a valid player position
 	local C, Z = Astrolabe:GetCurrentPlayerPosition();
-	if ( C ) then
+	if ( C and C >= 0 ) then
 		SetMapZoom(C, Z);
+	else
+		frame:Hide();
 	end
-
+	
 	-- re-calculate minimap icon positions
 	self:CalculateMinimapIconPositions();
 end
