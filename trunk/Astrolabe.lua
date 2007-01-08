@@ -233,6 +233,29 @@ end
 -- Minimap Icon Placement
 --------------------------------------------------------------------------------------------------------------
 
+local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, icon, dist, xDist, yDist )
+	--TODO: add support for non-circular minimaps
+	local mapDiameter;
+	if ( Astrolabe.minimapOutside ) then
+		mapDiameter = MinimapSize.outdoor[minimapZoom];
+	else
+		mapDiameter = MinimapSize.indoor[minimapZoom];
+	end
+	local mapRadius = mapDiameter / 2;
+	local xScale = mapDiameter / mapWidth;
+	local yScale = mapDiameter / mapHeight;
+	local iconDiameter = ((icon:GetWidth() / 2) + 3) * xScale;
+	
+	icon:ClearAllPoints();
+	if ( (dist + iconDiameter) > mapRadius ) then
+		-- position along the outside of the Minimap
+		local factor = (mapRadius - iconDiameter) / dist;
+		xDist = xDist * factor;
+		yDist = yDist * factor;
+	end
+	icon:SetPoint("CENTER", minimap, "CENTER", xDist/xScale, -yDist/yScale);
+end
+
 function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 	-- check argument types
 	self:argCheck(icon, 2, "table");
@@ -263,8 +286,8 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 	
 	--show the new icon and force a placement update on the next screen draw
 	icon:Show()
-	self.UpdateTimer = 0;
-	Astrolabe.ForceNextUpdate = true;
+	local map = Minimap
+	placeIconOnMinimap(map, map:GetZoom(), map:GetWidth(), map:GetHeight(), icon, dist, xDist, yDist);
 	
 	return 0;
 end
@@ -284,29 +307,6 @@ function Astrolabe:RemoveAllMinimapIcons()
 		minimapIcons[k] = nil;
 		k:Hide();
 	end
-end
-
-local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, icon, dist, xDist, yDist )
-	--TODO: add support for non-circular minimaps
-	local mapDiameter;
-	if ( Astrolabe.minimapOutside ) then
-		mapDiameter = MinimapSize.outdoor[minimapZoom];
-	else
-		mapDiameter = MinimapSize.indoor[minimapZoom];
-	end
-	local mapRadius = mapDiameter / 2;
-	local xScale = mapDiameter / mapWidth;
-	local yScale = mapDiameter / mapHeight;
-	local iconDiameter = ((icon:GetWidth() / 2) + 3) * xScale;
-	
-	icon:ClearAllPoints();
-	if ( (dist + iconDiameter) > mapRadius ) then
-		-- position along the outside of the Minimap
-		local factor = (mapRadius - iconDiameter) / dist;
-		xDist = xDist * factor;
-		yDist = yDist * factor;
-	end
-	icon:SetPoint("CENTER", minimap, "CENTER", xDist/xScale, -yDist/yScale);
 end
 
 local lastZoom;
