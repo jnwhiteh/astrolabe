@@ -461,6 +461,10 @@ function Astrolabe:OnEvent( frame, event )
 	
 	elseif ( event == "PLAYER_ENTERING_WORLD" ) then
 		frame:Show();
+		if not ( frame:IsVisible() ) then
+			-- do the minimap recalculation anyways if the OnShow script didn't execute
+			self:CalculateMinimapIconPositions();
+		end
 	
 	elseif ( event == "ZONE_CHANGED_NEW_AREA" ) then
 		frame:Show();
@@ -537,6 +541,9 @@ local function activate( self, oldLib, oldDeactivate )
 			end
 		end
 	end
+	
+	-- do a full update of the Minimap positioning system
+	self:CalculateMinimapIconPositions();
 end
 
 AceLibrary:Register(Astrolabe, LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR, activate)
