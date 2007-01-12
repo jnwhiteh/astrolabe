@@ -7,7 +7,7 @@ Inspired By: Gatherer by Norganna
              MapLibrary by Kristofer Karlsson (krka@kth.se)
 Website: http://esamynn.wowinterface.com/
 Documentation: 
-SVN: 
+SVN: http://esamynn.org/svn/astrolabe/
 Description:
 	This is a library for the World of Warcraft UI system to place
 	icons accurately on both the Minimap and the Worldmaps accurately
@@ -15,7 +15,7 @@ Description:
 
 License:
 
-Copyright (C) 2006  James Carrothers
+Copyright (C) 2006-2007 James Carrothers
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
