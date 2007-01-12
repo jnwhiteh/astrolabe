@@ -137,6 +137,15 @@ function Astrolabe:ComputeDistance( c1, z1, x1, y1, c2, z2, x2, y2 )
 end
 
 function Astrolabe:TranslateWorldMapPosition( C, Z, xPos, yPos, nC, nZ )
+	--[[
+	self:argCheck(C, 2, "number");
+	self:argCheck(Z, 3, "number", "nil");
+	self:argCheck(xPos, 4, "number");
+	self:argCheck(yPos, 5, "number");
+	self:argCheck(nC, 6, "number");
+	self:argCheck(nZ, 7, "number", "nil");
+	--]]
+	
 	Z = Z or 0;
 	nZ = nZ or 0;
 	if ( nC < 0 ) then
