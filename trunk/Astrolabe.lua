@@ -343,19 +343,23 @@ function Astrolabe:UpdateMinimapIconPositions()
 		end
 	else
 		local dist, xDelta, yDelta = self:ComputeDistance(lC, lZ, lx, ly, C, Z, x, y);
-		local currentZoom = Minimap:GetZoom();
-		lastZoom = currentZoom;
-		local mapWidth = Minimap:GetWidth();
-		local mapHeight = Minimap:GetHeight();
-		for icon, data in pairs(self.MinimapIcons) do
-			local xDist = data.xDist - xDelta;
-			local yDist = data.yDist - yDelta;
-			local dist = sqrt(xDist*xDist + yDist*yDist);
-			placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, dist, xDist, yDist);
-			
-			data.dist = dist;
-			data.xDist = xDist;
-			data.yDist = yDist;
+		if ( dist ) then
+			local currentZoom = Minimap:GetZoom();
+			lastZoom = currentZoom;
+			local mapWidth = Minimap:GetWidth();
+			local mapHeight = Minimap:GetHeight();
+			for icon, data in pairs(self.MinimapIcons) do
+				local xDist = data.xDist - xDelta;
+				local yDist = data.yDist - yDelta;
+				local dist = sqrt(xDist*xDist + yDist*yDist);
+				placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, dist, xDist, yDist);
+				
+				data.dist = dist;
+				data.xDist = xDist;
+				data.yDist = yDist;
+			end
+		else
+			self:RemoveAllMinimapIcons()
 		end
 		
 		lastPosition[1] = C;
@@ -379,11 +383,15 @@ function Astrolabe:CalculateMinimapIconPositions()
 	local mapHeight = Minimap:GetHeight();
 	for icon, data in pairs(self.MinimapIcons) do
 		local dist, xDist, yDist = self:ComputeDistance(C, Z, x, y, data.continent, data.zone, data.xPos, data.yPos);
-		placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, dist, xDist, yDist);
-		
-		data.dist = dist;
-		data.xDist = xDist;
-		data.yDist = yDist;
+		if ( dist ) then
+			placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, dist, xDist, yDist);
+			
+			data.dist = dist;
+			data.xDist = xDist;
+			data.yDist = yDist;
+		else
+			self:RemoveIconFromMinimap(icon)
+		end
 	end
 	
 	local lastPosition = self.LastPlayerPosition;
