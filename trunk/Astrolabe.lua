@@ -35,16 +35,20 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 -- WARNING!!!
 -- DO NOT MAKE CHANGES TO THIS LIBRARY WITHOUT FIRST CHANGING THE LIBRARY_VERSION_MAJOR
 -- STRING (to something unique) OR ELSE YOU MAY BREAK OTHER ADDONS THAT USE THIS LIBRARY!!!
-local LIBRARY_VERSION_MAJOR = "Astrolabe-0.2"
-local LIBRARY_VERSION_MINOR = "$Revision$"
+local LIBRARY_VERSION_MAJOR = "Astrolabe-0.3"
+local LIBRARY_VERSION_MINOR = tonumber(string.match("$Revision$", "(%d+)") or 1)
 
-if not AceLibrary then error(LIBRARY_VERSION_MAJOR .. " requires AceLibrary.") end
-if not AceLibrary:IsNewVersion(LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR) then return end
+if not DongleStub then error(LIBRARY_VERSION_MAJOR .. " requires DongleStub.") end
+if not DongleStub:IsNewerVersion(LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR) then return end
 
 local Astrolabe = {};
 
 -- define local variables for Data Tables (defined at the end of this file)
 local WorldMapSize, MinimapSize;
+
+function Astrolabe:GetVersion()
+	return LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR;
+end
 
 --------------------------------------------------------------------------------------------------------------
 -- Working Tables and Config Constants
@@ -60,8 +64,27 @@ Astrolabe.ForceNextUpdate = false;
 
 
 --------------------------------------------------------------------------------------------------------------
--- General Uility Functions
+-- Internal Utility Functions
 --------------------------------------------------------------------------------------------------------------
+
+local function assert(level,condition,message)
+	if not condition then
+		error(message,level)
+	end
+end
+
+local function argcheck(value, num, ...)
+	assert(1, type(num) == "number",
+		"Bad argument #2 to 'argcheck' (number expected, got " .. type(level) .. ")")
+
+	for i=1,select("#", ...) do
+		if type(value) == select(i, ...) then return end
+	end
+
+	local types = strjoin(", ", ...)
+	local name = string.match(debugstack(2,2,0), ": in function [`<](.-)['>]")
+	error(string.format("Bad argument #%d to 'Astrolabe.%s' (%s expected, got %s)", num, name, types, type(value)), 3)
+end
 
 local function getContPosition( zoneData, z, x, y )
 	if ( z ~= 0 ) then
@@ -75,18 +98,23 @@ local function getContPosition( zoneData, z, x, y )
 	return x, y;
 end
 
+
+--------------------------------------------------------------------------------------------------------------
+-- General Utility Functions
+--------------------------------------------------------------------------------------------------------------
+
 function Astrolabe:ComputeDistance( c1, z1, x1, y1, c2, z2, x2, y2 )
 	--[[
-	self:argCheck(c1, 2, "number");
-	self:assert(c1 >= 0, "ComputeDistance: Illegal continent index to c1: "..c1);
-	self:argCheck(z1, 3, "number", "nil");
-	self:argCheck(x1, 4, "number");
-	self:argCheck(y1, 5, "number");
-	self:argCheck(c2, 6, "number");
-	self:assert(c2 >= 0, "ComputeDistance: Illegal continent index to c2: "..c2);
-	self:argCheck(z2, 7, "number", "nil");
-	self:argCheck(x2, 8, "number");
-	self:argCheck(y2, 9, "number");
+	argcheck(c1, 2, "number");
+	assert(3, c1 >= 0, "ComputeDistance: Illegal continent index to c1: "..c1);
+	argcheck(z1, 3, "number", "nil");
+	argcheck(x1, 4, "number");
+	argcheck(y1, 5, "number");
+	argcheck(c2, 6, "number");
+	assert(3, c2 >= 0, "ComputeDistance: Illegal continent index to c2: "..c2);
+	argcheck(z2, 7, "number", "nil");
+	argcheck(x2, 8, "number");
+	argcheck(y2, 9, "number");
 	--]]
 	
 	z1 = z1 or 0;
@@ -138,12 +166,12 @@ end
 
 function Astrolabe:TranslateWorldMapPosition( C, Z, xPos, yPos, nC, nZ )
 	--[[
-	self:argCheck(C, 2, "number");
-	self:argCheck(Z, 3, "number", "nil");
-	self:argCheck(xPos, 4, "number");
-	self:argCheck(yPos, 5, "number");
-	self:argCheck(nC, 6, "number");
-	self:argCheck(nZ, 7, "number", "nil");
+	argcheck(C, 2, "number");
+	argcheck(Z, 3, "number", "nil");
+	argcheck(xPos, 4, "number");
+	argcheck(yPos, 5, "number");
+	argcheck(nC, 6, "number");
+	argcheck(nZ, 7, "number", "nil");
 	--]]
 	
 	Z = Z or 0;
@@ -267,12 +295,12 @@ end
 
 function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 	-- check argument types
-	self:argCheck(icon, 2, "table");
-	self:assert(icon.SetPoint and icon.ClearAllPoints, "Usage Message");
-	self:argCheck(continent, 3, "number");
-	self:argCheck(zone, 4, "number", "nil");
-	self:argCheck(xPos, 5, "number");
-	self:argCheck(yPos, 6, "number");
+	argcheck(icon, 2, "table");
+	assert(3, icon.SetPoint and icon.ClearAllPoints, "Usage Message");
+	argcheck(continent, 3, "number");
+	argcheck(zone, 4, "number", "nil");
+	argcheck(xPos, 5, "number");
+	argcheck(yPos, 6, "number");
 	
 	local lC, lZ, lx, ly = unpack(self.LastPlayerPosition);
 	local dist, xDist, yDist = self:ComputeDistance(lC, lZ, lx, ly, continent, zone, xPos, yPos);
@@ -415,14 +443,14 @@ end
 
 function Astrolabe:PlaceIconOnWorldMap( worldMapFrame, icon, continent, zone, xPos, yPos )
 	-- check argument types
-	self:argCheck(worldMapFrame, 2, "table");
-	self:assert(worldMapFrame.GetWidth and worldMapFrame.GetHeight, "Usage Message");
-	self:argCheck(icon, 3, "table");
-	self:assert(icon.SetPoint and icon.ClearAllPoints, "Usage Message");
-	self:argCheck(continent, 4, "number");
-	self:argCheck(zone, 5, "number", "nil");
-	self:argCheck(xPos, 6, "number");
-	self:argCheck(yPos, 7, "number");
+	argcheck(worldMapFrame, 2, "table");
+	assert(3, worldMapFrame.GetWidth and worldMapFrame.GetHeight, "Usage Message");
+	argcheck(icon, 3, "table");
+	assert(3, icon.SetPoint and icon.ClearAllPoints, "Usage Message");
+	argcheck(continent, 4, "number");
+	argcheck(zone, 5, "number", "nil");
+	argcheck(xPos, 6, "number");
+	argcheck(yPos, 7, "number");
 	
 	local C, Z = GetCurrentMapContinent(), GetCurrentMapZone();
 	local nX, nY = self:TranslateWorldMapPosition(continent, zone, xPos, yPos, C, Z);
@@ -508,14 +536,31 @@ end
 -- Library Registration
 --------------------------------------------------------------------------------------------------------------
 
-local function activate( self, oldLib, oldDeactivate )
-	Astrolabe = self;
-	local frame = self.processingFrame;
-	if not ( frame ) then
-		frame = CreateFrame("Frame");
+local function activate( newInstance, oldInstance )
+	if ( oldInstance ) then -- this is an upgrade activate
+		for k, v in pairs(oldInstance) do
+			if ( type(v) ~= "function" ) then
+				newInstance[k] = v;
+			end
+		end
+		Astrolabe = oldInstance;
+	else
+		local frame = CreateFrame("Frame");
 		frame:Hide();
-		self.processingFrame = frame;
+		newInstance.processingFrame = frame;
+		
+		newInstance.ContinentList = { GetMapContinents() };
+		for C in pairs(newInstance.ContinentList) do
+			local zones = { GetMapZones(C) };
+			newInstance.ContinentList[C] = zones;
+			for Z in ipairs(zones) do
+				SetMapZoom(C, Z);
+				zones[Z] = GetMapInfo();
+			end
+		end
 	end
+	
+	local frame = newInstance.processingFrame;
 	frame:SetParent("Minimap");
 	frame:UnregisterAllEvents();
 	frame:RegisterEvent("MINIMAP_UPDATE_ZOOM");
@@ -524,37 +569,25 @@ local function activate( self, oldLib, oldDeactivate )
 	frame:RegisterEvent("ZONE_CHANGED_NEW_AREA");
 	frame:SetScript("OnEvent",
 		function( frame, event, ... )
-			self:OnEvent(frame, event, ...);
+			Astrolabe:OnEvent(frame, event, ...);
 		end
 	);
 	frame:SetScript("OnUpdate",
 		function( frame, elapsed )
-			self:OnUpdate(frame, elapsed);
+			Astrolabe:OnUpdate(frame, elapsed);
 		end
 	);
 	frame:SetScript("OnShow",
 		function( frame )
-			self:OnShow(frame);
+			Astrolabe:OnShow(frame);
 		end
 	);
 	
-	if not ( self.ContinentList ) then
-		self.ContinentList = { GetMapContinents() };
-		for C in pairs(self.ContinentList) do
-			local zones = { GetMapZones(C) };
-			self.ContinentList[C] = zones;
-			for Z in ipairs(zones) do
-				SetMapZoom(C, Z);
-				zones[Z] = GetMapInfo();
-			end
-		end
-	end
-	
 	-- do a full update of the Minimap positioning system
-	self:CalculateMinimapIconPositions();
+	newInstance:CalculateMinimapIconPositions();
 end
 
-AceLibrary:Register(Astrolabe, LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR, activate)
+DongleStub:Register(Astrolabe, activate)
 
 
 --------------------------------------------------------------------------------------------------------------
