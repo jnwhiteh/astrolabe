@@ -395,7 +395,9 @@ local lastZoom;
 function Astrolabe:UpdateMinimapIconPositions()
 	local C, Z, x, y = self:GetCurrentPlayerPosition();
 	if not ( C and C >= 0 ) then
-		self.processingFrame:Hide();
+		if not ( self.WorldMapVisible ) then
+			self.processingFrame:Hide();
+		end
 		return;
 	end
 	local Minimap = Minimap;
@@ -445,7 +447,9 @@ end
 function Astrolabe:CalculateMinimapIconPositions()
 	local C, Z, x, y = self:GetCurrentPlayerPosition();
 	if not ( C and C >= 0 ) then
-		self.processingFrame:Hide();
+		if not ( self.WorldMapVisible ) then
+			self.processingFrame:Hide();
+		end
 		return;
 	end
 	
@@ -547,7 +551,7 @@ function Astrolabe:OnEvent( frame, event )
 			self:CalculateMinimapIconPositions();
 		end
 	
-	elseif ( event == "ZONE_CHANGED_NEW_AREA" or event == "WORLD_MAP_UPDATE" ) then
+	elseif ( event == "ZONE_CHANGED_NEW_AREA" ) then
 		frame:Show();
 	
 	end
@@ -578,7 +582,7 @@ end
 
 -- called by AstrolabMapMonitor when all world maps are hidden
 function Astrolabe:AllWorldMapsHidden()
-	self.processingFrame:Show();
+	self:CalculateMinimapIconPositions();
 end
 
 
@@ -617,7 +621,6 @@ local function activate( newInstance, oldInstance )
 	frame:RegisterEvent("PLAYER_LEAVING_WORLD");
 	frame:RegisterEvent("PLAYER_ENTERING_WORLD");
 	frame:RegisterEvent("ZONE_CHANGED_NEW_AREA");
-	frame:RegisterEvent("WORLD_MAP_UPDATE");
 	frame:SetScript("OnEvent",
 		function( frame, event, ... )
 			Astrolabe:OnEvent(frame, event, ...);
