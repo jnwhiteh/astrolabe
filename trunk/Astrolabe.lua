@@ -146,13 +146,13 @@ function Astrolabe:ComputeDistance( c1, z1, x1, y1, c2, z2, x2, y2 )
 		local cont1 = WorldMapSize[c1];
 		local cont2 = WorldMapSize[c2];
 		if ( cont1.parentContinent == cont2.parentContinent ) then
+			x1, y1 = getContPosition(cont1, z1, x1, y1);
+			x2, y2 = getContPosition(cont2, z2, x2, y2);
 			if ( c1 ~= cont1.parentContinent ) then
-				x1, y1 = getContPosition(cont1, z1, x1, y1);
 				x1 = x1 + cont1.xOffset;
 				y1 = y1 + cont1.yOffset;
 			end
 			if ( c2 ~= cont2.parentContinent ) then
-				x2, y2 = getContPosition(cont2, z2, x2, y2);
 				x2 = x2 + cont2.xOffset;
 				y2 = y2 + cont2.yOffset;
 			end
