@@ -62,6 +62,10 @@ Astrolabe.MinimapUpdateTime = 0.2;
 Astrolabe.UpdateTimer = 0;
 Astrolabe.ForceNextUpdate = false;
 
+-- This variable indicates whether we know of a visible World Map or not.  
+-- The state of this variable is controlled by the AstrolabeMapMonitor library.  
+Astrolabe.WorldMapVisible = false;
+
 
 --------------------------------------------------------------------------------------------------------------
 -- Internal Utility Functions
@@ -224,9 +228,50 @@ function Astrolabe:TranslateWorldMapPosition( C, Z, xPos, yPos, nC, nZ )
 	return (xPos / zoneData.width), (yPos / zoneData.height);
 end
 
+--*****************************************************************************
+-- This function will do its utmost to retrieve some sort of valid position 
+-- for the specified unit, including changing the current map zoom (if needed).  
+-- Map Zoom is returned to it's previous setting before this function returns.  
+--*****************************************************************************
+function Astrolabe:GetUnitPosition( unit, noMapChange )
+	local x, y = GetPlayerMapPosition(unit);
+	if ( x <= 0 and y <= 0 ) then
+		if ( notMapChange ) then
+			-- no valid position on the current map, and we aren't allowed
+			-- to change map zoom, so return
+			return;
+		end
+		local lastCont, lastZone = GetCurrentMapContinent(), GetCurrentMapZone();
+		SetMapToCurrentZone();
+		x, y = GetPlayerMapPosition(unit);
+		if ( x <= 0 and y <= 0 ) then
+			SetMapZoom(GetCurrentMapContinent());
+			x, y = GetPlayerMapPosition(unit);
+			if ( x <= 0 and y <= 0 ) then
+				-- we are in an instance or otherwise off the continent map
+				return;
+			end
+		end
+		local C, Z = GetCurrentMapContinent(), GetCurrentMapZone();
+		if ( C ~= lastCont or Z ~= lastZone ) then
+			SetMapZoom(lastCont, lastZone); --set map zoom back to what it was before
+		end
+		return C, Z, x, y;
+	end
+	return GetCurrentMapContinent(), GetCurrentMapZone(), x, y;
+end
+
+--*****************************************************************************
+-- 
+--*****************************************************************************
 function Astrolabe:GetCurrentPlayerPosition()
 	local x, y = GetPlayerMapPosition("player");
 	if ( x <= 0 and y <= 0 ) then
+		if ( self.WorldMapVisible ) then
+			-- we know there is a visible world map, so don't cause 
+			-- WORLD_MAP_UPDATE events by changing map zoom
+			return;
+		end
 		local lastCont, lastZone = GetCurrentMapContinent(), GetCurrentMapZone();
 		SetMapToCurrentZone();
 		x, y = GetPlayerMapPosition("player");
@@ -502,7 +547,7 @@ function Astrolabe:OnEvent( frame, event )
 			self:CalculateMinimapIconPositions();
 		end
 	
-	elseif ( event == "ZONE_CHANGED_NEW_AREA" ) then
+	elseif ( event == "ZONE_CHANGED_NEW_AREA" or event == "WORLD_MAP_UPDATE" ) then
 		frame:Show();
 	
 	end
@@ -529,6 +574,11 @@ function Astrolabe:OnShow( frame )
 	
 	-- re-calculate minimap icon positions
 	self:CalculateMinimapIconPositions();
+end
+
+-- called by AstrolabMapMonitor when all world maps are hidden
+function Astrolabe:AllWorldMapsHidden()
+	self.processingFrame:Show();
 end
 
 
@@ -567,6 +617,7 @@ local function activate( newInstance, oldInstance )
 	frame:RegisterEvent("PLAYER_LEAVING_WORLD");
 	frame:RegisterEvent("PLAYER_ENTERING_WORLD");
 	frame:RegisterEvent("ZONE_CHANGED_NEW_AREA");
+	frame:RegisterEvent("WORLD_MAP_UPDATE");
 	frame:SetScript("OnEvent",
 		function( frame, event, ... )
 			Astrolabe:OnEvent(frame, event, ...);
@@ -585,6 +636,10 @@ local function activate( newInstance, oldInstance )
 	
 	-- do a full update of the Minimap positioning system
 	newInstance:CalculateMinimapIconPositions();
+	
+	-- register this library with AstrolabeMapMonitor
+	local AstrolabeMapMonitor = DongleStub("AstrolabeMapMonitor");
+	AstrolabeMapMonitor:RegisterAstrolabeLibrary(Astrolabe, LIBRARY_VERSION_MAJOR);
 end
 
 DongleStub:Register(Astrolabe, activate)
