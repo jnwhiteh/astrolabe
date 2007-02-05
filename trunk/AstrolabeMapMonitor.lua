@@ -55,6 +55,17 @@ end
 
 if ( type(WorldMapDisplayFrames) ~= "table" ) then
 	WorldMapDisplayFrames = { WorldMapFrame };
+else
+	local worldMapFound = false;
+	for k, v in pairs(WorldMapDisplayFrames) do
+		if ( v == WorldMapFrame ) then
+			worldMapFound = true;
+			break;
+		end
+	end
+	if not ( worldMapFound ) then
+		table.insert(WorldMapDisplayFrames, WorldMapFrame);
+	end
 end
 
 
