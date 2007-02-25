@@ -493,7 +493,7 @@ function Astrolabe:CalculateMinimapIconPositions()
 end
 
 function Astrolabe:GetDistanceToIcon( icon )
-	local data = Astrolabe.MinimapIcons[icon];
+	local data = self.MinimapIcons[icon];
 	if ( data ) then
 		return data.dist, data.xDist, data.yDist;
 	end
