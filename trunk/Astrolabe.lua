@@ -57,11 +57,13 @@ end
 Astrolabe.LastPlayerPosition = { 0, 0, 0, 0 };
 Astrolabe.MinimapIcons = {};
 Astrolabe.IconsOnEdge = {};
+Astrolabe.IconsOnEdge_GroupChangeCallbacks = {};
 
 
 Astrolabe.MinimapUpdateTime = 0.2;
 Astrolabe.UpdateTimer = 0;
 Astrolabe.ForceNextUpdate = false;
+Astrolabe.IconsOnEdgeChanged = false;
 
 -- This variable indicates whether we know of a visible World Map or not.  
 -- The state of this variable is controlled by the AstrolabeMapMonitor library.  
@@ -296,6 +298,7 @@ function Astrolabe:GetCurrentPlayerPosition()
 	return GetCurrentMapContinent(), GetCurrentMapZone(), x, y;
 end
 
+
 --------------------------------------------------------------------------------------------------------------
 -- Working Table Cache System
 --------------------------------------------------------------------------------------------------------------
@@ -342,6 +345,7 @@ local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, ic
 	end
 	if ( Astrolabe.IconsOnEdge[icon] ~= iconOnEdge ) then
 		Astrolabe.IconsOnEdge[icon] = iconOnEdge;
+		Astrolabe.IconsOnEdgeChanged = true;
 	end
 	
 	icon:ClearAllPoints();
@@ -499,6 +503,13 @@ function Astrolabe:IsIconOnEdge( icon )
 	return self.IconsOnEdge[icon];
 end
 
+function Astrolabe:Register_OnEdgeChanged_Callback( func, ident )
+	-- check argument types
+	argcheck(func, 2, "function");
+	
+	self.IconsOnEdge_GroupChangeCallbacks[func] = ident;
+end
+
 
 --------------------------------------------------------------------------------------------------------------
 -- World Map Icon Placement
@@ -572,6 +583,15 @@ function Astrolabe:OnEvent( frame, event )
 end
 
 function Astrolabe:OnUpdate( frame, elapsed )
+	-- on-edge group changed call-backs
+	if ( self.IconsOnEdgeChanged ) then
+		self.IconsOnEdgeChanged = false;
+		for func in pairs(self.IconsOnEdge_GroupChangeCallbacks) do
+			pcall(func);
+		end
+	end
+	
+	-- icon position updates
 	local updateTimer = self.UpdateTimer - elapsed;
 	if ( updateTimer > 0 ) then
 		self.UpdateTimer = updateTimer;
