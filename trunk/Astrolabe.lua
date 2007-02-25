@@ -56,6 +56,7 @@ end
 
 Astrolabe.LastPlayerPosition = { 0, 0, 0, 0 };
 Astrolabe.MinimapIcons = {};
+Astrolabe.IconsOnEdge = {};
 
 
 Astrolabe.MinimapUpdateTime = 0.2;
@@ -327,14 +328,20 @@ local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, ic
 	local xScale = mapDiameter / mapWidth;
 	local yScale = mapDiameter / mapHeight;
 	local iconDiameter = ((icon:GetWidth() / 2) + 3) * xScale;
+	local iconOnEdge = nil;
 	
-	icon:ClearAllPoints();
 	if ( (dist + iconDiameter) > mapRadius ) then
 		-- position along the outside of the Minimap
+		iconOnEdge = true;
 		local factor = (mapRadius - iconDiameter) / dist;
 		xDist = xDist * factor;
 		yDist = yDist * factor;
 	end
+	if ( Astrolabe.IconsOnEdge[icon] ~= iconOnEdge ) then
+		Astrolabe.IconsOnEdge[icon] = iconOnEdge;
+	end
+	
+	icon:ClearAllPoints();
 	icon:SetPoint("CENTER", minimap, "CENTER", xDist/xScale, -yDist/yScale);
 end
 
@@ -483,6 +490,10 @@ function Astrolabe:GetDistanceToIcon( icon )
 	if ( data ) then
 		return data.dist, data.xDist, data.yDist;
 	end
+end
+
+function Astrolabe:IsIconOnEdge( icon )
+	return self.IconsOnEdge[icon];
 end
 
 
