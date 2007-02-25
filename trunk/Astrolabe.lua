@@ -503,6 +503,20 @@ function Astrolabe:IsIconOnEdge( icon )
 	return self.IconsOnEdge[icon];
 end
 
+local twoPi = math.pi * 2;
+local atan2 = math.atan2;
+function Astrolabe:GetDirectionToIcon( icon )
+	local data = self.MinimapIcons[icon];
+	if ( data ) then
+		local dir = atan2(data.xDist, -(data.yDist))
+		if ( dir > 0 ) then
+			return twoPi - dir;
+		else
+			return -dir;
+		end
+	end
+end
+
 function Astrolabe:Register_OnEdgeChanged_Callback( func, ident )
 	-- check argument types
 	argcheck(func, 2, "function");
