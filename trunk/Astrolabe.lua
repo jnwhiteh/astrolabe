@@ -121,6 +121,9 @@ function Astrolabe:ComputeDistance( c1, z1, x1, y1, c2, z2, x2, y2 )
 	argcheck(x2, 8, "number");
 	argcheck(y2, 9, "number");
 	--]]
+	if not WorldMapSize then
+		ChatFrame5:AddMessage(debugstack())
+	end
 	
 	z1 = z1 or 0;
 	z2 = z2 or 0;
@@ -648,9 +651,6 @@ local function activate( newInstance, oldInstance )
 		end
 	);
 	
-	-- do a full update of the Minimap positioning system
-	newInstance:CalculateMinimapIconPositions();
-	
 	-- register this library with AstrolabeMapMonitor
 	local AstrolabeMapMonitor = DongleStub("AstrolabeMapMonitor");
 	AstrolabeMapMonitor:RegisterAstrolabeLibrary(Astrolabe, LIBRARY_VERSION_MAJOR);
@@ -1100,3 +1100,7 @@ for continent, zones in pairs(Astrolabe.ContinentList) do
 		mapData.zoneData[mapName] = nil;
 	end
 end
+
+
+-- do a full update of the Minimap positioning system
+Astrolabe:CalculateMinimapIconPositions();
