@@ -393,14 +393,17 @@ function Astrolabe:RemoveIconFromMinimap( icon )
 		return 1;
 	end
 	self.MinimapIcons[icon] = nil;
+	self.IconsOnEdge[icon] = nil;
 	icon:Hide();
 	return 0;
 end
 
 function Astrolabe:RemoveAllMinimapIcons()
-	local minimapIcons = self.MinimapIcons
+	local minimapIcons = self.MinimapIcons;
+	local IconsOnEdge = self.IconsOnEdge;
 	for k, v in pairs(minimapIcons) do
 		minimapIcons[k] = nil;
+		IconsOnEdge[k] = nil;
 		k:Hide();
 	end
 end
