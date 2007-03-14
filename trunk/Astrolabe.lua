@@ -6,7 +6,7 @@ Author(s): Esamynn (esamynn@wowinterface.com)
 Inspired By: Gatherer by Norganna
              MapLibrary by Kristofer Karlsson (krka@kth.se)
 Website: http://esamynn.wowinterface.com/
-Documentation: 
+Documentation: http://www.esamynn.org/wiki/Astrolabe
 SVN: http://esamynn.org/svn/astrolabe/
 Description:
 	This is a library for the World of Warcraft UI system to place
@@ -123,9 +123,6 @@ function Astrolabe:ComputeDistance( c1, z1, x1, y1, c2, z2, x2, y2 )
 	argcheck(x2, 8, "number");
 	argcheck(y2, 9, "number");
 	--]]
-	if not WorldMapSize then
-		ChatFrame5:AddMessage(debugstack())
-	end
 	
 	z1 = z1 or 0;
 	z2 = z2 or 0;
