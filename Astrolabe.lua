@@ -35,7 +35,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 -- WARNING!!!
 -- DO NOT MAKE CHANGES TO THIS LIBRARY WITHOUT FIRST CHANGING THE LIBRARY_VERSION_MAJOR
 -- STRING (to something unique) OR ELSE YOU MAY BREAK OTHER ADDONS THAT USE THIS LIBRARY!!!
-local LIBRARY_VERSION_MAJOR = "Astrolabe-0.3"
+local LIBRARY_VERSION_MAJOR = "Astrolabe-0.4"
 local LIBRARY_VERSION_MINOR = tonumber(string.match("$Revision$", "(%d+)") or 1)
 
 if not DongleStub then error(LIBRARY_VERSION_MAJOR .. " requires DongleStub.") end
@@ -81,8 +81,7 @@ local function assert(level,condition,message)
 end
 
 local function argcheck(value, num, ...)
-	assert(1, type(num) == "number",
-		"Bad argument #2 to 'argcheck' (number expected, got " .. type(level) .. ")")
+	assert(1, type(num) == "number", "Bad argument #2 to 'argcheck' (number expected, got " .. type(level) .. ")")
 
 	for i=1,select("#", ...) do
 		if type(value) == select(i, ...) then return end
@@ -213,7 +212,7 @@ function Astrolabe:TranslateWorldMapPosition( C, Z, xPos, yPos, nC, nZ )
 			zoneData = WorldMapSize[parentContinent];
 		end
 		if ( nC ~= parentContinent ) then
-			--translate down to the new continent
+			-- translate down to the new continent
 			zoneData = WorldMapSize[nC];
 			xPos = xPos - zoneData.xOffset;
 			yPos = yPos - zoneData.yOffset;
@@ -234,7 +233,7 @@ end
 --*****************************************************************************
 -- This function will do its utmost to retrieve some sort of valid position 
 -- for the specified unit, including changing the current map zoom (if needed).  
--- Map Zoom is returned to it's previous setting before this function returns.  
+-- Map Zoom is returned to its previous setting before this function returns.  
 --*****************************************************************************
 function Astrolabe:GetUnitPosition( unit, noMapChange )
 	local x, y = GetPlayerMapPosition(unit);
@@ -257,7 +256,7 @@ function Astrolabe:GetUnitPosition( unit, noMapChange )
 		end
 		local C, Z = GetCurrentMapContinent(), GetCurrentMapZone();
 		if ( C ~= lastCont or Z ~= lastZone ) then
-			SetMapZoom(lastCont, lastZone); --set map zoom back to what it was before
+			SetMapZoom(lastCont, lastZone); -- set map zoom back to what it was before
 		end
 		return C, Z, x, y;
 	end
@@ -265,7 +264,12 @@ function Astrolabe:GetUnitPosition( unit, noMapChange )
 end
 
 --*****************************************************************************
--- 
+-- This function will do its utmost to retrieve some sort of valid position 
+-- for the specified unit, including changing the current map zoom (if needed).  
+-- However, if a monitored WorldMapFrame (See AstrolabeMapMonitor.lua) is 
+-- visible, then will simply return nil if the current zoom does not provide 
+-- a valid position for the player unit.  Map Zoom is returned to its previous 
+-- setting before this function returns, if it was changed.  
 --*****************************************************************************
 function Astrolabe:GetCurrentPlayerPosition()
 	local x, y = GetPlayerMapPosition("player");
@@ -377,10 +381,10 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 	iconData.xDist = xDist;
 	iconData.yDist = yDist;
 	
-	--show the new icon and force a placement update on the next screen draw
-	icon:Show()
+	-- place the icon on the Minimap and :Show() it
 	local map = Minimap
 	placeIconOnMinimap(map, map:GetZoom(), map:GetWidth(), map:GetHeight(), icon, dist, xDist, yDist);
+	icon:Show()
 	
 	return 0;
 end
@@ -543,9 +547,13 @@ function Astrolabe:PlaceIconOnWorldMap( worldMapFrame, icon, continent, zone, xP
 	local C, Z = GetCurrentMapContinent(), GetCurrentMapZone();
 	local nX, nY = self:TranslateWorldMapPosition(continent, zone, xPos, yPos, C, Z);
 	
+	-- anchor and :Show() the icon if it is within the boundry of the current map, :Hide() it otherwise
 	if ( nX and nY and (0 < nX and nX <= 1) and (0 < nY and nY <= 1) ) then
 		icon:ClearAllPoints();
 		icon:SetPoint("CENTER", worldMapFrame, "TOPLEFT", nX * worldMapFrame:GetWidth(), -nY * worldMapFrame:GetHeight());
+		icon:Show();
+	else
+		icon:Hide();
 	end
 	return nX, nY;
 end
