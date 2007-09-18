@@ -637,6 +637,7 @@ function Astrolabe:OnEvent( frame, event )
 		end
 	
 	elseif ( event == "ZONE_CHANGED_NEW_AREA" ) then
+		frame:Hide();
 		frame:Show();
 	
 	end
@@ -663,6 +664,9 @@ end
 
 function Astrolabe:OnShow( frame )
 	-- set the world map to a zoom with a valid player position
+	if not ( self.WorldMapVisible ) then
+		SetMapToCurrentZone();
+	end
 	local C, Z = Astrolabe:GetCurrentPlayerPosition();
 	if ( C and C >= 0 ) then
 		SetMapZoom(C, Z);
@@ -676,7 +680,8 @@ end
 
 -- called by AstrolabMapMonitor when all world maps are hidden
 function Astrolabe:AllWorldMapsHidden()
-	self:CalculateMinimapIconPositions();
+	self.processingFrame:Hide();
+	self.processingFrame:Show();
 end
 
 
