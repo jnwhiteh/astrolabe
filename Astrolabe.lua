@@ -50,7 +50,7 @@ if not DongleStub:IsNewerVersion(LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR) t
 local Astrolabe = {};
 
 -- define local variables for Data Tables (defined at the end of this file)
-local WorldMapSize, MinimapSize;
+local WorldMapSize, MinimapSize, ValidMinimapShapes;
 
 function Astrolabe:GetVersion()
 	return LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR;
@@ -331,14 +331,16 @@ end
 
 -- local variables specifically for use in this section
 local minimapRotationEnabled = false;
+local minimapShape = false;
 local MinimapCompassRing = MiniMapCompassRing;
 local twoPi = math.pi * 2;
 local atan2 = math.atan2;
 local sin = math.sin;
 local cos = math.cos;
+local abs = math.abs;
+local sqrt = math.sqrt;
 
 local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, icon, dist, xDist, yDist )
-	--TODO: add support for non-circular minimaps
 	local mapDiameter;
 	if ( Astrolabe.minimapOutside ) then
 		mapDiameter = MinimapSize.outdoor[minimapZoom];
@@ -350,6 +352,7 @@ local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, ic
 	local yScale = mapDiameter / mapHeight;
 	local iconDiameter = ((icon:GetWidth() / 2) + 3) * xScale;
 	local iconOnEdge = nil;
+	local isRound = true;
 	
 	if ( minimapRotationEnabled ) then
 		-- for the life of me, I cannot figure out why the following 
@@ -359,6 +362,20 @@ local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, ic
 		yDist = dist * cos(dir);
 	end
 	
+	if ( minimapShape and not (xDist == 0 or yDist == 0) ) then
+		isRound = (xDist < 0) and 1 or 3;
+		if ( yDist < 0 ) then
+			isRound = minimapShape[isRound];
+		else
+			isRound = minimapShape[isRound + 1];
+		end
+	end
+	
+	-- for non-circular portions of the Minimap edge
+	if not ( isRound ) then
+		dist = (abs(xDist) > abs(yDist)) and abs(xDist) or abs(yDist);
+	end
+
 	if ( (dist + iconDiameter) > mapRadius ) then
 		-- position along the outside of the Minimap
 		iconOnEdge = true;
@@ -366,6 +383,7 @@ local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, ic
 		xDist = xDist * factor;
 		yDist = yDist * factor;
 	end
+	
 	if ( Astrolabe.IconsOnEdge[icon] ~= iconOnEdge ) then
 		Astrolabe.IconsOnEdge[icon] = iconOnEdge;
 		Astrolabe.IconsOnEdgeChanged = true;
@@ -408,6 +426,9 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 	else
 		minimapRotationEnabled = false;
 	end
+	
+	-- check Minimap Shape
+	minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
 	
 	-- place the icon on the Minimap and :Show() it
 	local map = Minimap
@@ -455,6 +476,9 @@ function Astrolabe:UpdateMinimapIconPositions()
 	else
 		minimapRotationEnabled = false;
 	end
+	
+	-- check Minimap Shape
+	minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
 	
 	if ( lC == C and lZ == Z and lx == x and ly == y ) then
 		-- player has not moved since the last update
@@ -510,6 +534,9 @@ function Astrolabe:CalculateMinimapIconPositions()
 	else
 		minimapRotationEnabled = false;
 	end
+	
+	-- check Minimap Shape
+	minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
 	
 	local currentZoom = Minimap:GetZoom();
 	lastZoom = currentZoom;
@@ -767,6 +794,23 @@ MinimapSize = {
 		[4] = 200,       -- 7/3
 		[5] = 133 + 1/3, -- 3.5
 	},
+}
+
+ValidMinimapShapes = {
+	-- { upper-left, lower-left, upper-right, lower-right }
+	["SQUARE"]                = { false, false, false, false },
+	["CORNER-TOPLEFT"]        = { true,  false, false, false },
+	["CORNER-TOPRIGHT"]       = { false, false, true,  false },
+	["CORNER-BOTTOMLEFT"]     = { false, true,  false, false },
+	["CORNER-BOTTOMRIGHT"]    = { false, false, false, true },
+	["SIDE-LEFT"]             = { true,  true,  false, false },
+	["SIDE-RIGHT"]            = { false, false, true,  true },
+	["SIDE-TOP"]              = { true,  false, true,  false },
+	["SIDE-BOTTOM"]           = { false, true,  false, true },
+	["TRICORNER-TOPLEFT"]     = { true,  true,  true,  false },
+	["TRICORNER-TOPRIGHT"]    = { true,  false, true,  true },
+	["TRICORNER-BOTTOMLEFT"]  = { true,  true,  false, true },
+	["TRICORNER-BOTTOMRIGHT"] = { false, true,  true,  true },
 }
 
 -- distances across and offsets of the world maps
