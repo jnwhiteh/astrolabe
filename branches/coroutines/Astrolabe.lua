@@ -475,8 +475,17 @@ function Astrolabe:RemoveAllMinimapIcons()
 end
 
 local lastZoom; -- to remember the last seen Minimap zoom level
+
+-- local variables to track the status of the two update coroutines
 local fullUpdateInProgress = nil
 local resetIncrementalUpdate = false
+
+local fullUpdateCrashed = true
+local fullUpdateThread
+
+local incrementalUpdateCrashed = true
+local incrementalUpdateThread
+
 
 local function UpdateMinimapIconPositions( self )
 	yield()
@@ -574,8 +583,6 @@ local function UpdateMinimapIconPositions( self )
 	end
 end
 
-local incrementalUpdateCrashed = true
-local incrementalUpdateThread
 function Astrolabe:UpdateMinimapIconPositions()
 	if ( incrementalUpdateCrashed ) then
 		incrementalUpdateThread = coroutine.wrap(UpdateMinimapIconPositions)
@@ -583,6 +590,10 @@ function Astrolabe:UpdateMinimapIconPositions()
 	end
 	if ( fullUpdateInProgress ) then
 		fullUpdateInProgress()
+	
+	elseif ( fullUpdateCrashed ) then
+		self:CalculateMinimapIconPositions()
+	
 	else
 		incrementalUpdateCrashed = true
 		incrementalUpdateThread()
@@ -653,17 +664,16 @@ local function CalculateMinimapIconPositions( self )
 	end
 end
 
-local updateCrashed = true
-local updateThread
 function Astrolabe:CalculateMinimapIconPositions()
-	if ( updateCrashed ) then
-		updateThread = coroutine.wrap(CalculateMinimapIconPositions)
-		updateThread(self) --initialize the thread
+	if ( fullUpdateCrashed ) then
+		fullUpdateThread = coroutine.wrap(CalculateMinimapIconPositions)
+		fullUpdateThread(self) --initialize the thread
 	end
-	updateCrashed = true
-	fullUpdateInProgress = updateThread -- save the thread so it will be finished
-	updateThread()
-	updateCrashed = false
+	fullUpdateCrashed = true
+	fullUpdateInProgress = fullUpdateThread -- save the thread so it will be finished
+	fullUpdateThread()
+	fullUpdateCrashed = false
+	resetIncrementalUpdate = true
 end
 
 
