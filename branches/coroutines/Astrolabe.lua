@@ -544,7 +544,7 @@ local function UpdateMinimapIconPositions( self )
 					data.yDist = yDist;
 					
 					count = count + 1
-					if ( count > numPerCycle ) then
+					if ( count >= numPerCycle ) then
 						count = 0
 						yield()
 						if ( resetIncrementalUpdate ) then
@@ -570,25 +570,27 @@ local function UpdateMinimapIconPositions( self )
 		if not ( resetIncrementalUpdate ) then
 			yield()
 		end
+		resetIncrementalUpdate = false
 	end
 end
 
 local incrementalUpdateCrashed = true
-local incrementalUpdateThread = coroutine.wrap(UpdateMinimapIconPositions)
+local incrementalUpdateThread
 function Astrolabe:UpdateMinimapIconPositions()
 	if ( incrementalUpdateCrashed ) then
 		incrementalUpdateThread = coroutine.wrap(UpdateMinimapIconPositions)
-		incrementalUpdateThread(self)
+		incrementalUpdateThread(self) --initialize the thread
 	end
 	if ( fullUpdateInProgress ) then
 		fullUpdateInProgress()
+	else
+		incrementalUpdateCrashed = true
+		incrementalUpdateThread()
+		incrementalUpdateCrashed = false
 	end
-	incrementalUpdateCrashed = true
-	incrementalUpdateThread()
-	incrementalUpdateCrashed = false
 end
 
-function CalculateMinimapIconPositions( self )
+local function CalculateMinimapIconPositions( self )
 	yield()
 	
 	while ( true ) do
@@ -634,7 +636,7 @@ function CalculateMinimapIconPositions( self )
 			end
 			
 			count = count + 1
-			if ( count > numPerCycle ) then
+			if ( count >= numPerCycle ) then
 				count = 0
 				yield()
 			end
@@ -652,11 +654,11 @@ function CalculateMinimapIconPositions( self )
 end
 
 local updateCrashed = true
-local updateThread = coroutine.wrap(CalculateMinimapIconPositions)
+local updateThread
 function Astrolabe:CalculateMinimapIconPositions()
 	if ( updateCrashed ) then
 		updateThread = coroutine.wrap(CalculateMinimapIconPositions)
-		updateThread(self)
+		updateThread(self) --initialize the thread
 	end
 	updateCrashed = true
 	fullUpdateInProgress = updateThread -- save the thread so it will be finished
@@ -789,15 +791,7 @@ function Astrolabe:OnUpdate( frame, elapsed )
 			pcall(func);
 		end
 	end
-	--[[
-	-- icon position updates
-	local updateTimer = self.UpdateTimer - elapsed;
-	if ( updateTimer > 0 ) then
-		self.UpdateTimer = updateTimer;
-		return;
-	end
-	self.UpdateTimer = self.MinimapUpdateTime;
-	]]
+	
 	self:UpdateMinimapIconPositions();
 end
 
