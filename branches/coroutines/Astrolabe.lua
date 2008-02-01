@@ -477,20 +477,19 @@ end
 local lastZoom; -- to remember the last seen Minimap zoom level
 
 -- local variables to track the status of the two update coroutines
-local fullUpdateInProgress = nil
+local fullUpdateInProgress = true
 local resetIncrementalUpdate = false
 
-local fullUpdateCrashed = true
-local fullUpdateThread
-
+-- local variables to track the incremental update coroutine
 local incrementalUpdateCrashed = true
 local incrementalUpdateThread
-
 
 local function UpdateMinimapIconPositions( self )
 	yield()
 	
 	while ( true ) do
+		resetIncrementalUpdate = false -- by definition, the incremental update is reset if it is here
+		
 		local C, Z, x, y = self:GetCurrentPlayerPosition();
 		if not ( C and C >= 0 ) then
 			if not ( self.WorldMapVisible ) then
@@ -530,6 +529,11 @@ local function UpdateMinimapIconPositions( self )
 					if ( count > numPerCycle ) then
 						count = 0
 						yield()
+						-- check if the incremental update cycle needs to be reset 
+						-- because a full update has been run
+						if ( resetIncrementalUpdate ) then
+							break;
+						end
 					end
 				end
 				self.ForceNextUpdate = false;
@@ -556,6 +560,8 @@ local function UpdateMinimapIconPositions( self )
 					if ( count >= numPerCycle ) then
 						count = 0
 						yield()
+						-- check if the incremental update cycle needs to be reset 
+						-- because a full update has been run
 						if ( resetIncrementalUpdate ) then
 							break;
 						end
@@ -576,30 +582,31 @@ local function UpdateMinimapIconPositions( self )
 		-- put new/update icons into the main datacache
 		self:DumpNewIconsCache()
 		
+		-- if we've been reset, then we want to start the new incremental update immediately
 		if not ( resetIncrementalUpdate ) then
 			yield()
 		end
-		resetIncrementalUpdate = false
 	end
 end
 
 function Astrolabe:UpdateMinimapIconPositions()
-	if ( incrementalUpdateCrashed ) then
-		incrementalUpdateThread = coroutine.wrap(UpdateMinimapIconPositions)
-		incrementalUpdateThread(self) --initialize the thread
-	end
 	if ( fullUpdateInProgress ) then
-		fullUpdateInProgress()
-	
-	elseif ( fullUpdateCrashed ) then
+		-- if we're in the middle a a full update, we want to finish that first
 		self:CalculateMinimapIconPositions()
-	
 	else
+		if ( incrementalUpdateCrashed ) then
+			incrementalUpdateThread = coroutine.wrap(UpdateMinimapIconPositions)
+			incrementalUpdateThread(self) --initialize the thread
+		end
 		incrementalUpdateCrashed = true
 		incrementalUpdateThread()
 		incrementalUpdateCrashed = false
 	end
 end
+
+-- local variables to track the full update coroutine
+local fullUpdateCrashed = true
+local fullUpdateThread
 
 local function CalculateMinimapIconPositions( self )
 	yield()
@@ -659,7 +666,8 @@ local function CalculateMinimapIconPositions( self )
 		lastPosition[3] = x;
 		lastPosition[4] = y;
 		
-		fullUpdateInProgress = nil
+		fullUpdateInProgress = false
+		resetIncrementalUpdate = true
 		yield()
 	end
 end
@@ -669,13 +677,11 @@ function Astrolabe:CalculateMinimapIconPositions()
 		fullUpdateThread = coroutine.wrap(CalculateMinimapIconPositions)
 		fullUpdateThread(self) --initialize the thread
 	end
+	fullUpdateInProgress = true -- set the flag the says a full update is in progress
 	fullUpdateCrashed = true
-	fullUpdateInProgress = fullUpdateThread -- save the thread so it will be finished
 	fullUpdateThread()
 	fullUpdateCrashed = false
-	resetIncrementalUpdate = true
 end
-
 
 function Astrolabe:GetDistanceToIcon( icon )
 	local data = self.MinimapIcons[icon];
