@@ -256,7 +256,7 @@ end
 function Astrolabe:GetUnitPosition( unit, noMapChange )
 	local x, y = GetPlayerMapPosition(unit);
 	if ( x <= 0 and y <= 0 ) then
-		if ( notMapChange ) then
+		if ( noMapChange ) then
 			-- no valid position on the current map, and we aren't allowed
 			-- to change map zoom, so return
 			return;
