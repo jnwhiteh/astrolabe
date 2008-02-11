@@ -479,6 +479,7 @@ local lastZoom; -- to remember the last seen Minimap zoom level
 -- local variables to track the status of the two update coroutines
 local fullUpdateInProgress = true
 local resetIncrementalUpdate = false
+local resetFullUpdate = false
 
 -- local variables to track the incremental update coroutine
 local incrementalUpdateCrashed = true
@@ -582,7 +583,7 @@ local function UpdateMinimapIconPositions( self )
 		-- put new/updated icons into the main datacache
 		self:DumpNewIconsCache()
 		
-		-- if we've been reset, then we want to start the new incremental update immediately
+		-- if we've been reset, then we want to start the new cycle immediately
 		if not ( resetIncrementalUpdate ) then
 			yield()
 		end
@@ -612,6 +613,7 @@ local function CalculateMinimapIconPositions( self )
 	yield()
 	
 	while ( true ) do
+		resetFullUpdate = false -- by definition, the full update is reset if it is here
 		fullUpdateInProgress = true -- set the flag the says a full update is in progress
 		
 		local C, Z, x, y = self:GetCurrentPlayerPosition();
@@ -653,31 +655,42 @@ local function CalculateMinimapIconPositions( self )
 				if ( count >= numPerCycle ) then
 					count = 0
 					yield()
+					-- check if we need to restart due to the full update being reset
+					if ( resetFullUpdate ) then
+						break;
+					end
 				end
 			end
 			
-			local lastPosition = self.LastPlayerPosition;
-			lastPosition[1] = C;
-			lastPosition[2] = Z;
-			lastPosition[3] = x;
-			lastPosition[4] = y;
-			
-			resetIncrementalUpdate = true
+			if not ( resetFullUpdate ) then
+				local lastPosition = self.LastPlayerPosition;
+				lastPosition[1] = C;
+				lastPosition[2] = Z;
+				lastPosition[3] = x;
+				lastPosition[4] = y;
+				
+				resetIncrementalUpdate = true
+			end
 		else
 			if not ( self.WorldMapVisible ) then
 				self.processingFrame:Hide();
 			end
 		end
 		
-		fullUpdateInProgress = false
-		yield()
+		-- if we've been reset, then we want to start the new cycle immediately
+		if not ( resetFullUpdate ) then
+			fullUpdateInProgress = false
+			yield()
+		end
 	end
 end
 
-function Astrolabe:CalculateMinimapIconPositions()
+function Astrolabe:CalculateMinimapIconPositions( reset )
 	if ( fullUpdateCrashed ) then
 		fullUpdateThread = coroutine.wrap(CalculateMinimapIconPositions)
 		fullUpdateThread(self) --initialize the thread
+	elseif ( reset )
+		resetFullUpdate = true
 	end
 	fullUpdateCrashed = true
 	fullUpdateThread()
