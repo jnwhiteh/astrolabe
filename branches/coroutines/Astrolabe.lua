@@ -917,10 +917,6 @@ local function activate( newInstance, oldInstance )
 	);
 	
 	setmetatable(Astrolabe.MinimapIcons, MinimapIconsMetatable)
-	
-	-- register this library with AstrolabeMapMonitor
-	local AstrolabeMapMonitor = DongleStub("AstrolabeMapMonitor");
-	AstrolabeMapMonitor:RegisterAstrolabeLibrary(Astrolabe, LIBRARY_VERSION_MAJOR);
 end
 
 DongleStub:Register(Astrolabe, activate)
@@ -1386,5 +1382,6 @@ for continent, zones in pairs(Astrolabe.ContinentList) do
 end
 
 
--- do a full update of the Minimap positioning system
-Astrolabe:CalculateMinimapIconPositions();
+-- register this library with AstrolabeMapMonitor, this will also cause a full update
+local AstrolabeMapMonitor = DongleStub("AstrolabeMapMonitor");
+AstrolabeMapMonitor:RegisterAstrolabeLibrary(Astrolabe, LIBRARY_VERSION_MAJOR);
