@@ -689,7 +689,7 @@ function Astrolabe:CalculateMinimapIconPositions( reset )
 	if ( fullUpdateCrashed ) then
 		fullUpdateThread = coroutine.wrap(CalculateMinimapIconPositions)
 		fullUpdateThread(self) --initialize the thread
-	elseif ( reset )
+	elseif ( reset ) then
 		resetFullUpdate = true
 	end
 	fullUpdateCrashed = true
