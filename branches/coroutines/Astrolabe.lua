@@ -482,230 +482,236 @@ local fullUpdateInProgress = true
 local resetIncrementalUpdate = false
 local resetFullUpdate = false
 
--- local variables to track the incremental update coroutine
-local incrementalUpdateCrashed = true
-local incrementalUpdateThread
-
-local function UpdateMinimapIconPositions( self )
-	yield()
+-- Incremental Update Code
+do
+	-- local variables to track the incremental update coroutine
+	local incrementalUpdateCrashed = true
+	local incrementalUpdateThread
 	
-	while ( true ) do
-		self:DumpNewIconsCache() -- put new/updated icons into the main datacache
+	local function UpdateMinimapIconPositions( self )
+		yield()
 		
-		resetIncrementalUpdate = false -- by definition, the incremental update is reset if it is here
-		
-		local C, Z, x, y = self:GetCurrentPlayerPosition();
-		if ( C and C >= 0 ) then
-			local Minimap = Minimap;
-			local lastPosition = self.LastPlayerPosition;
-			local lC, lZ, lx, ly = unpack(lastPosition);
+		while ( true ) do
+			self:DumpNewIconsCache() -- put new/updated icons into the main datacache
 			
-			if ( GetCVar("rotateMinimap") ~= "0" ) then
-				minimapRotationEnabled = true;
-			else
-				minimapRotationEnabled = false;
-			end
+			resetIncrementalUpdate = false -- by definition, the incremental update is reset if it is here
 			
-			-- check current frame rate
-			local numPerCycle = min(50, GetFramerate() * (self.MinimapUpdateMultiplier or 1))
-			
-			-- check Minimap Shape
-			minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
-			
-			if ( lC == C and lZ == Z and lx == x and ly == y ) then
-				-- player has not moved since the last update
-				if ( lastZoom ~= Minimap:GetZoom() or self.ForceNextUpdate or minimapRotationEnabled ) then
-					local currentZoom = Minimap:GetZoom();
-					lastZoom = currentZoom;
-					local mapWidth = Minimap:GetWidth();
-					local mapHeight = Minimap:GetHeight();
-					numPerCycle = numPerCycle * 2
-					local count = 0
-					for icon, data in pairs(self.MinimapIcons) do
-						placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, data.dist, data.xDist, data.yDist);
-						
-						count = count + 1
-						if ( count > numPerCycle ) then
-							count = 0
-							yield()
-							-- check if the incremental update cycle needs to be reset 
-							-- because a full update has been run
-							if ( resetIncrementalUpdate ) then
-								break;
+			local C, Z, x, y = self:GetCurrentPlayerPosition();
+			if ( C and C >= 0 ) then
+				local Minimap = Minimap;
+				local lastPosition = self.LastPlayerPosition;
+				local lC, lZ, lx, ly = unpack(lastPosition);
+				
+				if ( GetCVar("rotateMinimap") ~= "0" ) then
+					minimapRotationEnabled = true;
+				else
+					minimapRotationEnabled = false;
+				end
+				
+				-- check current frame rate
+				local numPerCycle = min(50, GetFramerate() * (self.MinimapUpdateMultiplier or 1))
+				
+				-- check Minimap Shape
+				minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
+				
+				if ( lC == C and lZ == Z and lx == x and ly == y ) then
+					-- player has not moved since the last update
+					if ( lastZoom ~= Minimap:GetZoom() or self.ForceNextUpdate or minimapRotationEnabled ) then
+						local currentZoom = Minimap:GetZoom();
+						lastZoom = currentZoom;
+						local mapWidth = Minimap:GetWidth();
+						local mapHeight = Minimap:GetHeight();
+						numPerCycle = numPerCycle * 2
+						local count = 0
+						for icon, data in pairs(self.MinimapIcons) do
+							placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, data.dist, data.xDist, data.yDist);
+							
+							count = count + 1
+							if ( count > numPerCycle ) then
+								count = 0
+								yield()
+								-- check if the incremental update cycle needs to be reset 
+								-- because a full update has been run
+								if ( resetIncrementalUpdate ) then
+									break;
+								end
 							end
 						end
+						self.ForceNextUpdate = false;
 					end
-					self.ForceNextUpdate = false;
+				else
+					local dist, xDelta, yDelta = self:ComputeDistance(lC, lZ, lx, ly, C, Z, x, y);
+					if ( dist ) then
+						local currentZoom = Minimap:GetZoom();
+						lastZoom = currentZoom;
+						local mapWidth = Minimap:GetWidth();
+						local mapHeight = Minimap:GetHeight();
+						local count = 0
+						for icon, data in pairs(self.MinimapIcons) do
+							local xDist = data.xDist - xDelta;
+							local yDist = data.yDist - yDelta;
+							local dist = sqrt(xDist*xDist + yDist*yDist);
+							placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, dist, xDist, yDist);
+							
+							data.dist = dist;
+							data.xDist = xDist;
+							data.yDist = yDist;
+							
+							count = count + 1
+							if ( count >= numPerCycle ) then
+								count = 0
+								yield()
+								-- check if the incremental update cycle needs to be reset 
+								-- because a full update has been run
+								if ( resetIncrementalUpdate ) then
+									break;
+								end
+							end
+						end
+					else
+						self:RemoveAllMinimapIcons()
+					end
+					
+					if not ( resetIncrementalUpdate ) then
+						lastPosition[1] = C;
+						lastPosition[2] = Z;
+						lastPosition[3] = x;
+						lastPosition[4] = y;
+					end
 				end
 			else
-				local dist, xDelta, yDelta = self:ComputeDistance(lC, lZ, lx, ly, C, Z, x, y);
-				if ( dist ) then
-					local currentZoom = Minimap:GetZoom();
-					lastZoom = currentZoom;
-					local mapWidth = Minimap:GetWidth();
-					local mapHeight = Minimap:GetHeight();
-					local count = 0
-					for icon, data in pairs(self.MinimapIcons) do
-						local xDist = data.xDist - xDelta;
-						local yDist = data.yDist - yDelta;
-						local dist = sqrt(xDist*xDist + yDist*yDist);
+				if not ( self.WorldMapVisible ) then
+					self.processingFrame:Hide();
+				end
+			end
+			
+			-- if we've been reset, then we want to start the new cycle immediately
+			if not ( resetIncrementalUpdate ) then
+				yield()
+			end
+		end
+	end
+	
+	function Astrolabe:UpdateMinimapIconPositions()
+		if ( fullUpdateInProgress ) then
+			-- if we're in the middle a a full update, we want to finish that first
+			self:CalculateMinimapIconPositions()
+		else
+			if ( incrementalUpdateCrashed ) then
+				incrementalUpdateThread = coroutine.wrap(UpdateMinimapIconPositions)
+				incrementalUpdateThread(self) --initialize the thread
+			end
+			incrementalUpdateCrashed = true
+			incrementalUpdateThread()
+			incrementalUpdateCrashed = false
+		end
+	end
+end
+
+-- Full Update Code
+do
+	-- local variables to track the full update coroutine
+	local fullUpdateCrashed = true
+	local fullUpdateThread
+	
+	local function CalculateMinimapIconPositions( self )
+		yield()
+		
+		while ( true ) do
+			self:DumpNewIconsCache() -- put new/updated icons into the main datacache
+			
+			resetFullUpdate = false -- by definition, the full update is reset if it is here
+			fullUpdateInProgress = true -- set the flag the says a full update is in progress
+			
+			local C, Z, x, y = self:GetCurrentPlayerPosition();
+			if ( C and C >= 0 ) then
+				if ( GetCVar("rotateMinimap") ~= "0" ) then
+					minimapRotationEnabled = true;
+				else
+					minimapRotationEnabled = false;
+				end
+				
+				-- check current frame rate
+				local numPerCycle = GetFramerate() * (self.MinimapUpdateMultiplier or 1) * 2
+				
+				-- check Minimap Shape
+				minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
+				
+				local currentZoom = Minimap:GetZoom();
+				lastZoom = currentZoom;
+				local Minimap = Minimap;
+				local mapWidth = Minimap:GetWidth();
+				local mapHeight = Minimap:GetHeight();
+				local count = 0
+				for icon, data in pairs(self.MinimapIcons) do
+					local dist, xDist, yDist = self:ComputeDistance(C, Z, x, y, data.continent, data.zone, data.xPos, data.yPos);
+					if ( dist ) then
 						placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, dist, xDist, yDist);
 						
 						data.dist = dist;
 						data.xDist = xDist;
 						data.yDist = yDist;
-						
-						count = count + 1
-						if ( count >= numPerCycle ) then
-							count = 0
-							yield()
-							-- check if the incremental update cycle needs to be reset 
-							-- because a full update has been run
-							if ( resetIncrementalUpdate ) then
-								break;
-							end
+					else
+						self:RemoveIconFromMinimap(icon)
+					end
+					
+					count = count + 1
+					if ( count >= numPerCycle ) then
+						count = 0
+						yield()
+						-- check if we need to restart due to the full update being reset
+						if ( resetFullUpdate ) then
+							break;
 						end
 					end
-				else
-					self:RemoveAllMinimapIcons()
 				end
 				
-				if not ( resetIncrementalUpdate ) then
+				if not ( resetFullUpdate ) then
+					local lastPosition = self.LastPlayerPosition;
 					lastPosition[1] = C;
 					lastPosition[2] = Z;
 					lastPosition[3] = x;
 					lastPosition[4] = y;
-				end
-			end
-		else
-			if not ( self.WorldMapVisible ) then
-				self.processingFrame:Hide();
-			end
-		end
-		
-		-- if we've been reset, then we want to start the new cycle immediately
-		if not ( resetIncrementalUpdate ) then
-			yield()
-		end
-	end
-end
-
-function Astrolabe:UpdateMinimapIconPositions()
-	if ( fullUpdateInProgress ) then
-		-- if we're in the middle a a full update, we want to finish that first
-		self:CalculateMinimapIconPositions()
-	else
-		if ( incrementalUpdateCrashed ) then
-			incrementalUpdateThread = coroutine.wrap(UpdateMinimapIconPositions)
-			incrementalUpdateThread(self) --initialize the thread
-		end
-		incrementalUpdateCrashed = true
-		incrementalUpdateThread()
-		incrementalUpdateCrashed = false
-	end
-end
-
--- local variables to track the full update coroutine
-local fullUpdateCrashed = true
-local fullUpdateThread
-
-local function CalculateMinimapIconPositions( self )
-	yield()
-	
-	while ( true ) do
-		self:DumpNewIconsCache() -- put new/updated icons into the main datacache
-		
-		resetFullUpdate = false -- by definition, the full update is reset if it is here
-		fullUpdateInProgress = true -- set the flag the says a full update is in progress
-		
-		local C, Z, x, y = self:GetCurrentPlayerPosition();
-		if ( C and C >= 0 ) then
-			if ( GetCVar("rotateMinimap") ~= "0" ) then
-				minimapRotationEnabled = true;
-			else
-				minimapRotationEnabled = false;
-			end
-			
-			-- check current frame rate
-			local numPerCycle = GetFramerate() * (self.MinimapUpdateMultiplier or 1) * 2
-			
-			-- check Minimap Shape
-			minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
-			
-			local currentZoom = Minimap:GetZoom();
-			lastZoom = currentZoom;
-			local Minimap = Minimap;
-			local mapWidth = Minimap:GetWidth();
-			local mapHeight = Minimap:GetHeight();
-			local count = 0
-			for icon, data in pairs(self.MinimapIcons) do
-				local dist, xDist, yDist = self:ComputeDistance(C, Z, x, y, data.continent, data.zone, data.xPos, data.yPos);
-				if ( dist ) then
-					placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, dist, xDist, yDist);
 					
-					data.dist = dist;
-					data.xDist = xDist;
-					data.yDist = yDist;
-				else
-					self:RemoveIconFromMinimap(icon)
+					resetIncrementalUpdate = true
 				end
-				
-				count = count + 1
-				if ( count >= numPerCycle ) then
-					count = 0
-					yield()
-					-- check if we need to restart due to the full update being reset
-					if ( resetFullUpdate ) then
-						break;
-					end
+			else
+				if not ( self.WorldMapVisible ) then
+					self.processingFrame:Hide();
 				end
 			end
 			
+			-- if we've been reset, then we want to start the new cycle immediately
 			if not ( resetFullUpdate ) then
-				local lastPosition = self.LastPlayerPosition;
-				lastPosition[1] = C;
-				lastPosition[2] = Z;
-				lastPosition[3] = x;
-				lastPosition[4] = y;
-				
-				resetIncrementalUpdate = true
-			end
-		else
-			if not ( self.WorldMapVisible ) then
-				self.processingFrame:Hide();
+				fullUpdateInProgress = false
+				yield()
 			end
 		end
+	end
+	
+	function Astrolabe:CalculateMinimapIconPositions( reset )
+		if ( fullUpdateCrashed ) then
+			fullUpdateThread = coroutine.wrap(CalculateMinimapIconPositions)
+			fullUpdateThread(self) --initialize the thread
+		elseif ( reset ) then
+			resetFullUpdate = true
+		end
+		fullUpdateCrashed = true
+		fullUpdateThread()
+		fullUpdateCrashed = false
 		
-		-- if we've been reset, then we want to start the new cycle immediately
-		if not ( resetFullUpdate ) then
-			fullUpdateInProgress = false
-			yield()
-		end
-	end
-end
-
-function Astrolabe:CalculateMinimapIconPositions( reset )
-	if ( fullUpdateCrashed ) then
-		fullUpdateThread = coroutine.wrap(CalculateMinimapIconPositions)
-		fullUpdateThread(self) --initialize the thread
-	elseif ( reset ) then
-		resetFullUpdate = true
-	end
-	fullUpdateCrashed = true
-	fullUpdateThread()
-	fullUpdateCrashed = false
-	
-	-- return result flag
-	if ( fullUpdateInProgress ) then
-		return 1 -- full update started, but did not complete on this cycle
-	
-	else
-		if ( resetIncrementalUpdate ) then
-			return 0 -- update completed
+		-- return result flag
+		if ( fullUpdateInProgress ) then
+			return 1 -- full update started, but did not complete on this cycle
+		
 		else
-			return -1 -- full update did no occur for some reason
+			if ( resetIncrementalUpdate ) then
+				return 0 -- update completed
+			else
+				return -1 -- full update did no occur for some reason
+			end
+		
 		end
-	
 	end
 end
 
