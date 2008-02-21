@@ -423,8 +423,9 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 		return -1;
 	end
 	local iconData = GetWorkingTable(icon);
-	iconData = GetWorkingTable(icon);
-	self.MinimapIcons[icon] = nil;
+	if ( self.MinimapIcons[icon] ) then
+		self.MinimapIcons[icon] = nil;
+	end
 	AddedOrUpdatedIcons[icon] = iconData
 	
 	iconData.continent = continent;
@@ -489,6 +490,8 @@ local function UpdateMinimapIconPositions( self )
 	yield()
 	
 	while ( true ) do
+		self:DumpNewIconsCache() -- put new/updated icons into the main datacache
+		
 		resetIncrementalUpdate = false -- by definition, the incremental update is reset if it is here
 		
 		local C, Z, x, y = self:GetCurrentPlayerPosition();
@@ -580,9 +583,6 @@ local function UpdateMinimapIconPositions( self )
 			end
 		end
 		
-		-- put new/updated icons into the main datacache
-		self:DumpNewIconsCache()
-		
 		-- if we've been reset, then we want to start the new cycle immediately
 		if not ( resetIncrementalUpdate ) then
 			yield()
@@ -613,14 +613,13 @@ local function CalculateMinimapIconPositions( self )
 	yield()
 	
 	while ( true ) do
+		self:DumpNewIconsCache() -- put new/updated icons into the main datacache
+		
 		resetFullUpdate = false -- by definition, the full update is reset if it is here
 		fullUpdateInProgress = true -- set the flag the says a full update is in progress
 		
 		local C, Z, x, y = self:GetCurrentPlayerPosition();
 		if ( C and C >= 0 ) then
-			-- put new/updated icons into the main datacache
-			self:DumpNewIconsCache()
-			
 			if ( GetCVar("rotateMinimap") ~= "0" ) then
 				minimapRotationEnabled = true;
 			else
@@ -740,13 +739,15 @@ function Astrolabe:Register_OnEdgeChanged_Callback( func, ident )
 	self.IconsOnEdge_GroupChangeCallbacks[func] = ident;
 end
 
--- for use ONLY by the activate function
 function Astrolabe:DumpNewIconsCache()
 	local MinimapIcons = self.MinimapIcons
 	for icon, data in pairs(AddedOrUpdatedIcons) do
 		MinimapIcons[icon] = data
 		AddedOrUpdatedIcons[icon] = nil
 	end
+	-- we now need to restart any updates that were in progress
+	resetIncrementalUpdate = true
+	resetFullUpdate = true
 end
 
 
