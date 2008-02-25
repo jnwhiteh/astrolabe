@@ -2,15 +2,16 @@
 Name: Astrolabe
 Revision: $Rev$
 $Date$
-Author(s): Esamynn (esamynn@wowinterface.com)
+Author(s): Esamynn (esamynn at wowinterface.com)
 Inspired By: Gatherer by Norganna
-             MapLibrary by Kristofer Karlsson (krka@kth.se)
+             MapLibrary by Kristofer Karlsson (krka at kth.se)
 Documentation: http://wiki.esamynn.org/Astrolabe
 SVN: http://svn.esamynn.org/astrolabe/
 Description:
 	This is a library for the World of Warcraft UI system to place
-	icons accurately on both the Minimap and the Worldmaps accurately
-	and maintain the accuracy of those positions.  
+	icons accurately on both the Minimap and the Worldmaps accurately.  
+	This library also manages and updates the position of Minimap icons 
+	automatically.  
 
 Copyright (C) 2006-2008 James Carrothers
 
@@ -68,6 +69,7 @@ local configConstants = {
 -- how many icons are updated each frame
 Astrolabe.MinimapUpdateMultiplier = 1;
 
+
 --------------------------------------------------------------------------------------------------------------
 -- Working Tables
 --------------------------------------------------------------------------------------------------------------
@@ -87,6 +89,21 @@ Astrolabe.WorldMapVisible = false;
 
 local AddedOrUpdatedIcons = {}
 local MinimapIconsMetatable = { __index = AddedOrUpdatedIcons }
+
+
+--------------------------------------------------------------------------------------------------------------
+-- Local Pointers for often used API functions
+--------------------------------------------------------------------------------------------------------------
+
+local twoPi = math.pi * 2;
+local atan2 = math.atan2;
+local sin = math.sin;
+local cos = math.cos;
+local abs = math.abs;
+local sqrt = math.sqrt;
+local min = math.min
+local yield = coroutine.yield
+
 
 --------------------------------------------------------------------------------------------------------------
 -- Internal Utility Functions
@@ -341,18 +358,16 @@ end
 -- Minimap Icon Placement
 --------------------------------------------------------------------------------------------------------------
 
+--*****************************************************************************
 -- local variables specifically for use in this section
+--*****************************************************************************
 local minimapRotationEnabled = false;
 local minimapShape = false;
+
+-- I don't cache the actual direction information because I don't want to 
+-- encur the work required to retrieve it unless I'm actually going to use the information.  
 local MinimapCompassRing = MiniMapCompassRing;
-local twoPi = math.pi * 2;
-local atan2 = math.atan2;
-local sin = math.sin;
-local cos = math.cos;
-local abs = math.abs;
-local sqrt = math.sqrt;
-local min = math.min
-local yield = coroutine.yield
+
 
 local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, icon, dist, xDist, yDist )
 	local mapDiameter;
@@ -436,11 +451,7 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 	iconData.xDist = xDist;
 	iconData.yDist = yDist;
 	
-	if ( GetCVar("rotateMinimap") ~= "0" ) then
-		minimapRotationEnabled = true;
-	else
-		minimapRotationEnabled = false;
-	end
+	use minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
 	
 	-- check Minimap Shape
 	minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
@@ -502,11 +513,7 @@ do
 				local lastPosition = self.LastPlayerPosition;
 				local lC, lZ, lx, ly = unpack(lastPosition);
 				
-				if ( GetCVar("rotateMinimap") ~= "0" ) then
-					minimapRotationEnabled = true;
-				else
-					minimapRotationEnabled = false;
-				end
+				use minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
 				
 				-- check current frame rate
 				local numPerCycle = min(50, GetFramerate() * (self.MinimapUpdateMultiplier or 1))
@@ -625,11 +632,7 @@ do
 			
 			local C, Z, x, y = self:GetCurrentPlayerPosition();
 			if ( C and C >= 0 ) then
-				if ( GetCVar("rotateMinimap") ~= "0" ) then
-					minimapRotationEnabled = true;
-				else
-					minimapRotationEnabled = false;
-				end
+				use minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
 				
 				-- check current frame rate
 				local numPerCycle = GetFramerate() * (self.MinimapUpdateMultiplier or 1) * 2
@@ -812,7 +815,7 @@ function Astrolabe:OnEvent( frame, event )
 		
 		-- re-calculate all Minimap Icon positions
 		if ( frame:IsVisible() ) then
-			self:CalculateMinimapIconPositions();
+			self:CalculateMinimapIconPositions(true);
 		end
 	
 	elseif ( event == "PLAYER_LEAVING_WORLD" ) then
@@ -823,7 +826,9 @@ function Astrolabe:OnEvent( frame, event )
 		frame:Show();
 		if not ( frame:IsVisible() ) then
 			-- do the minimap recalculation anyways if the OnShow script didn't execute
-			self:CalculateMinimapIconPositions();
+			-- this is done to ensure the accuracy of information about icons that were 
+			-- inserted while the Player was in the process of zoning
+			self:CalculateMinimapIconPositions(true);
 		end
 	
 	elseif ( event == "ZONE_CHANGED_NEW_AREA" ) then
@@ -855,16 +860,19 @@ function Astrolabe:OnShow( frame )
 		SetMapZoom(C, Z);
 	else
 		frame:Hide();
+		return
 	end
 	
 	-- re-calculate minimap icon positions
-	self:CalculateMinimapIconPositions();
+	self:CalculateMinimapIconPositions(true);
 end
 
 -- called by AstrolabMapMonitor when all world maps are hidden
 function Astrolabe:AllWorldMapsHidden()
-	self.processingFrame:Hide();
-	self.processingFrame:Show();
+	if ( IsLoggedIn() ) then
+		self.processingFrame:Hide();
+		self.processingFrame:Show();
+	end
 end
 
 
@@ -885,7 +893,6 @@ local function activate( newInstance, oldInstance )
 		Astrolabe = oldInstance;
 	else
 		local frame = CreateFrame("Frame");
-		frame:Hide();
 		newInstance.processingFrame = frame;
 		
 		newInstance.ContinentList = { GetMapContinents() };
@@ -901,6 +908,7 @@ local function activate( newInstance, oldInstance )
 	configConstants = nil -- we don't need this anymore
 	
 	local frame = newInstance.processingFrame;
+	frame:Hide();
 	frame:SetParent("Minimap");
 	frame:UnregisterAllEvents();
 	frame:RegisterEvent("MINIMAP_UPDATE_ZOOM");
