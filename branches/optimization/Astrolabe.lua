@@ -365,9 +365,8 @@ end
 local minimapRotationEnabled = false;
 local minimapShape = false;
 
--- I don't cache the actual direction information because I don't want to 
--- encur the work required to retrieve it unless I'm actually going to use the information.  
 local MinimapCompassRing = MiniMapCompassRing;
+local playerFacingDir = -MinimapCompassRing:GetFacing()
 
 
 local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, icon, dist, xDist, yDist )
@@ -385,11 +384,25 @@ local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, ic
 	local isRound = true;
 	
 	if ( minimapRotationEnabled ) then
-		-- for the life of me, I cannot figure out why the following 
-		-- math works, but it does
-		local dir = atan2(xDist, yDist) + MinimapCompassRing:GetFacing();
-		xDist = dist * sin(dir);
-		yDist = dist * cos(dir);
+		local sinTheta = sin(playerFacingDir)
+		local cosTheta = cos(playerFacingDir)
+		--[[
+		Math Note
+		The math that is acutally going on in the next 3 lines is:
+			local dx, dy = xDist, -yDist
+			xDist = (dx * cosTheta) + (dy * sinTheta)
+			yDist = -((-dx * sinTheta) + (dy * cosTheta))
+		
+		This is because the origin for map coordinates is the top left corner
+		of the map, not the bottom left, and so we have to reverse the vertical 
+		distance when doing the our rotation, and then reverse the result vertical 
+		distance because this rotation formula gives us a result with the origin based 
+		in the bottom left corner (of the (+, +) quadrant).  
+		The actual code is a simplification of the above.  
+		]]
+		local dx, dy = xDist, yDist
+		xDist = (dx * cosTheta) - (dy * sinTheta)
+		yDist = (dx * sinTheta) + (dy * cosTheta)
 	end
 	
 	if ( minimapShape and not (xDist == 0 or yDist == 0) ) then
@@ -458,6 +471,9 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 	iconData.yDist = yDist;
 	
 	minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
+	if ( minimapRotationEnabled ) then
+		playerFacingDir = -MinimapCompassRing:GetFacing()
+	end
 	
 	-- check Minimap Shape
 	minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
@@ -527,6 +543,9 @@ do
 				local lC, lZ, lx, ly = unpack(lastPosition);
 				
 				minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
+				if ( minimapRotationEnabled ) then
+					playerFacingDir = -MinimapCompassRing:GetFacing()
+				end
 				
 				-- check current frame rate
 				local numPerCycle = min(50, GetFramerate() * (self.MinimapUpdateMultiplier or 1))
@@ -646,6 +665,9 @@ do
 			local C, Z, x, y = self:GetCurrentPlayerPosition();
 			if ( C and C >= 0 ) then
 				minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
+				if ( minimapRotationEnabled ) then
+					playerFacingDir = -MinimapCompassRing:GetFacing()
+				end
 				
 				-- check current frame rate
 				local numPerCycle = GetFramerate() * (self.MinimapUpdateMultiplier or 1) * 2
