@@ -103,6 +103,7 @@ local abs = math.abs;
 local sqrt = math.sqrt;
 local min = math.min
 local yield = coroutine.yield
+local GetFramerate = GetFramerate
 
 
 --------------------------------------------------------------------------------------------------------------
@@ -437,6 +438,11 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 		--icon's position has no meaningful position relative to the player's current location
 		return -1;
 	end
+	
+	-- we know this icon's position is valid, so we need to make sure the icon placement 
+	-- system is active
+	self.processingFrame:Show()
+	
 	local iconData = GetWorkingTable(icon);
 	if ( self.MinimapIcons[icon] ) then
 		self.MinimapIcons[icon] = nil;
@@ -465,25 +471,32 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 end
 
 function Astrolabe:RemoveIconFromMinimap( icon )
-	if not ( self.MinimapIcons[icon] ) then
+	if not ( self.MinimapIcons[icon] or AddedOrUpdatedIcons[icon] ) then
 		return 1;
 	end
 	AddedOrUpdatedIcons[icon] = nil
 	self.MinimapIcons[icon] = nil;
 	self.IconsOnEdge[icon] = nil;
 	icon:Hide();
+	
+	if not ( next(self.MinimapIcons) or next(AddedOrUpdatedIcons) ) then
+		-- no icons left to manage
+		self.processingFrame:Hide()
+	end
+	
 	return 0;
 end
 
 function Astrolabe:RemoveAllMinimapIcons()
 	self:DumpNewIconsCache()
-	local minimapIcons = self.MinimapIcons;
+	local MinimapIcons = self.MinimapIcons;
 	local IconsOnEdge = self.IconsOnEdge;
-	for k, v in pairs(minimapIcons) do
-		minimapIcons[k] = nil;
+	for k, v in pairs(MinimapIcons) do
+		MinimapIcons[k] = nil;
 		IconsOnEdge[k] = nil;
 		k:Hide();
 	end
+	self.processingFrame:Hide()
 end
 
 local lastZoom; -- to remember the last seen Minimap zoom level
@@ -867,8 +880,13 @@ function Astrolabe:OnShow( frame )
 		return
 	end
 	
-	-- re-calculate minimap icon positions
-	self:CalculateMinimapIconPositions(true);
+	if ( next(self.MinimapIcons) or next(AddedOrUpdatedIcons) ) then
+		-- re-calculate minimap icon positions
+		self:CalculateMinimapIconPositions(true);
+	else
+		-- no icons left to manage
+		self.processingFrame:Hide()
+	end
 end
 
 -- called by AstrolabMapMonitor when all world maps are hidden
