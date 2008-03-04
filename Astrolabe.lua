@@ -366,7 +366,7 @@ local minimapRotationEnabled = false;
 local minimapShape = false;
 
 local MinimapCompassRing = MiniMapCompassRing;
-local playerFacingDir = -MinimapCompassRing:GetFacing()
+local minimapRotationOffset = -MinimapCompassRing:GetFacing()
 
 
 local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, icon, dist, xDist, yDist )
@@ -384,8 +384,8 @@ local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, ic
 	local isRound = true;
 	
 	if ( minimapRotationEnabled ) then
-		local sinTheta = sin(playerFacingDir)
-		local cosTheta = cos(playerFacingDir)
+		local sinTheta = sin(minimapRotationOffset)
+		local cosTheta = cos(minimapRotationOffset)
 		--[[
 		Math Note
 		The math that is acutally going on in the next 3 lines is:
@@ -472,7 +472,7 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 	
 	minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
 	if ( minimapRotationEnabled ) then
-		playerFacingDir = -MinimapCompassRing:GetFacing()
+		minimapRotationOffset = -MinimapCompassRing:GetFacing()
 	end
 	
 	-- check Minimap Shape
@@ -544,7 +544,7 @@ do
 				
 				minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
 				if ( minimapRotationEnabled ) then
-					playerFacingDir = -MinimapCompassRing:GetFacing()
+					minimapRotationOffset = -MinimapCompassRing:GetFacing()
 				end
 				
 				-- check current frame rate
@@ -666,7 +666,7 @@ do
 			if ( C and C >= 0 ) then
 				minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
 				if ( minimapRotationEnabled ) then
-					playerFacingDir = -MinimapCompassRing:GetFacing()
+					minimapRotationOffset = -MinimapCompassRing:GetFacing()
 				end
 				
 				-- check current frame rate
