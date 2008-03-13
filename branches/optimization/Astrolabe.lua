@@ -102,6 +102,7 @@ local cos = math.cos;
 local abs = math.abs;
 local sqrt = math.sqrt;
 local min = math.min
+local max = math.max
 local yield = coroutine.yield
 local GetFramerate = GetFramerate
 
@@ -118,11 +119,11 @@ end
 
 local function argcheck(value, num, ...)
 	assert(1, type(num) == "number", "Bad argument #2 to 'argcheck' (number expected, got " .. type(level) .. ")")
-
+	
 	for i=1,select("#", ...) do
 		if type(value) == select(i, ...) then return end
 	end
-
+	
 	local types = strjoin(", ", ...)
 	local name = string.match(debugstack(2,2,0), ": in function [`<](.-)['>]")
 	error(string.format("Bad argument #%d to 'Astrolabe.%s' (%s expected, got %s)", num, name, types, type(value)), 3)
@@ -416,7 +417,7 @@ local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, ic
 	
 	-- for non-circular portions of the Minimap edge
 	if not ( isRound ) then
-		dist = (abs(xDist) > abs(yDist)) and abs(xDist) or abs(yDist);
+		dist = max(abs(xDist), abs(yDist))
 	end
 
 	if ( (dist + iconDiameter) > mapRadius ) then
