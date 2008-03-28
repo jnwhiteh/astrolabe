@@ -575,11 +575,14 @@ do
 								end
 							end
 						end
+						if not ( resetIncrementalUpdate ) then
+							lastPosition[1] = C;
+							lastPosition[2] = Z;
+							lastPosition[3] = x;
+							lastPosition[4] = y;
+						end
 					else
 						self:RemoveAllMinimapIcons()
-					end
-					
-					if not ( resetIncrementalUpdate ) then
 						lastPosition[1] = C;
 						lastPosition[2] = Z;
 						lastPosition[3] = x;
