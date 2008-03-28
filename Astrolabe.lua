@@ -2,18 +2,17 @@
 Name: Astrolabe
 Revision: $Rev$
 $Date$
-Author(s): Esamynn (esamynn at wowinterface.com)
+Author(s): Esamynn (esamynn@wowinterface.com)
 Inspired By: Gatherer by Norganna
-             MapLibrary by Kristofer Karlsson (krka at kth.se)
+             MapLibrary by Kristofer Karlsson (krka@kth.se)
 Documentation: http://wiki.esamynn.org/Astrolabe
 SVN: http://svn.esamynn.org/astrolabe/
 Description:
 	This is a library for the World of Warcraft UI system to place
-	icons accurately on both the Minimap and on Worldmaps.  
-	This library also manages and updates the position of Minimap icons 
-	automatically.  
+	icons accurately on both the Minimap and the Worldmaps accurately
+	and maintain the accuracy of those positions.  
 
-Copyright (C) 2006-2008 James Carrothers
+Copyright (C) 2006-2007 James Carrothers
 
 License:
 	This library is free software; you can redistribute it and/or
@@ -41,7 +40,7 @@ Note:
 -- WARNING!!!
 -- DO NOT MAKE CHANGES TO THIS LIBRARY WITHOUT FIRST CHANGING THE LIBRARY_VERSION_MAJOR
 -- STRING (to something unique) OR ELSE YOU MAY BREAK OTHER ADDONS THAT USE THIS LIBRARY!!!
-local LIBRARY_VERSION_MAJOR = "Astrolabe-0.4"
+local LIBRARY_VERSION_MAJOR = "Astrolabe-0.4-NC"
 local LIBRARY_VERSION_MINOR = tonumber(string.match("$Revision$", "(%d+)") or 1)
 
 if not DongleStub then error(LIBRARY_VERSION_MAJOR .. " requires DongleStub.") end
@@ -56,22 +55,8 @@ function Astrolabe:GetVersion()
 	return LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR;
 end
 
-
 --------------------------------------------------------------------------------------------------------------
--- Config Constants
---------------------------------------------------------------------------------------------------------------
-
-local configConstants = { 
-	MinimapUpdateMultiplier = true, 
-}
-
--- this constant is multiplied by the current framerate to determine
--- how many icons are updated each frame
-Astrolabe.MinimapUpdateMultiplier = 1;
-
-
---------------------------------------------------------------------------------------------------------------
--- Working Tables
+-- Working Tables and Config Constants
 --------------------------------------------------------------------------------------------------------------
 
 Astrolabe.LastPlayerPosition = { 0, 0, 0, 0 };
@@ -79,6 +64,8 @@ Astrolabe.MinimapIcons = {};
 Astrolabe.IconsOnEdge = {};
 Astrolabe.IconsOnEdge_GroupChangeCallbacks = {};
 
+
+Astrolabe.MinimapUpdateTime = 0.2;
 Astrolabe.UpdateTimer = 0;
 Astrolabe.ForceNextUpdate = false;
 Astrolabe.IconsOnEdgeChanged = false;
@@ -86,23 +73,6 @@ Astrolabe.IconsOnEdgeChanged = false;
 -- This variable indicates whether we know of a visible World Map or not.  
 -- The state of this variable is controlled by the AstrolabeMapMonitor library.  
 Astrolabe.WorldMapVisible = false;
-
-local AddedOrUpdatedIcons = {}
-local MinimapIconsMetatable = { __index = AddedOrUpdatedIcons }
-
-
---------------------------------------------------------------------------------------------------------------
--- Local Pointers for often used API functions
---------------------------------------------------------------------------------------------------------------
-
-local twoPi = math.pi * 2;
-local atan2 = math.atan2;
-local sin = math.sin;
-local cos = math.cos;
-local abs = math.abs;
-local sqrt = math.sqrt;
-local min = math.min
-local yield = coroutine.yield
 
 
 --------------------------------------------------------------------------------------------------------------
@@ -358,16 +328,16 @@ end
 -- Minimap Icon Placement
 --------------------------------------------------------------------------------------------------------------
 
---*****************************************************************************
 -- local variables specifically for use in this section
---*****************************************************************************
 local minimapRotationEnabled = false;
 local minimapShape = false;
-
--- I don't cache the actual direction information because I don't want to 
--- encur the work required to retrieve it unless I'm actually going to use the information.  
 local MinimapCompassRing = MiniMapCompassRing;
-
+local twoPi = math.pi * 2;
+local atan2 = math.atan2;
+local sin = math.sin;
+local cos = math.cos;
+local abs = math.abs;
+local sqrt = math.sqrt;
 
 local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, icon, dist, xDist, yDist )
 	local mapDiameter;
@@ -437,12 +407,11 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 		--icon's position has no meaningful position relative to the player's current location
 		return -1;
 	end
-	local iconData = GetWorkingTable(icon);
-	if ( self.MinimapIcons[icon] ) then
-		self.MinimapIcons[icon] = nil;
+	local iconData = self.MinimapIcons[icon];
+	if not ( iconData ) then
+		iconData = GetWorkingTable(icon);
+		self.MinimapIcons[icon] = iconData;
 	end
-	AddedOrUpdatedIcons[icon] = iconData
-	
 	iconData.continent = continent;
 	iconData.zone = zone;
 	iconData.xPos = xPos;
@@ -451,7 +420,11 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 	iconData.xDist = xDist;
 	iconData.yDist = yDist;
 	
-	minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
+	if ( GetCVar("rotateMinimap") ~= "0" ) then
+		minimapRotationEnabled = true;
+	else
+		minimapRotationEnabled = false;
+	end
 	
 	-- check Minimap Shape
 	minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
@@ -468,7 +441,6 @@ function Astrolabe:RemoveIconFromMinimap( icon )
 	if not ( self.MinimapIcons[icon] ) then
 		return 1;
 	end
-	AddedOrUpdatedIcons[icon] = nil
 	self.MinimapIcons[icon] = nil;
 	self.IconsOnEdge[icon] = nil;
 	icon:Hide();
@@ -476,7 +448,6 @@ function Astrolabe:RemoveIconFromMinimap( icon )
 end
 
 function Astrolabe:RemoveAllMinimapIcons()
-	self:DumpNewIconsCache()
 	local minimapIcons = self.MinimapIcons;
 	local IconsOnEdge = self.IconsOnEdge;
 	for k, v in pairs(minimapIcons) do
@@ -486,239 +457,109 @@ function Astrolabe:RemoveAllMinimapIcons()
 	end
 end
 
-local lastZoom; -- to remember the last seen Minimap zoom level
-
--- local variables to track the status of the two update coroutines
-local fullUpdateInProgress = true
-local resetIncrementalUpdate = false
-local resetFullUpdate = false
-
--- Incremental Update Code
-do
-	-- local variables to track the incremental update coroutine
-	local incrementalUpdateCrashed = true
-	local incrementalUpdateThread
-	
-	local function UpdateMinimapIconPositions( self )
-		yield()
-		
-		while ( true ) do
-			self:DumpNewIconsCache() -- put new/updated icons into the main datacache
-			
-			resetIncrementalUpdate = false -- by definition, the incremental update is reset if it is here
-			
-			local C, Z, x, y = self:GetCurrentPlayerPosition();
-			if ( C and C >= 0 ) then
-				local Minimap = Minimap;
-				local lastPosition = self.LastPlayerPosition;
-				local lC, lZ, lx, ly = unpack(lastPosition);
-				
-				minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
-				
-				-- check current frame rate
-				local numPerCycle = min(50, GetFramerate() * (self.MinimapUpdateMultiplier or 1))
-				
-				-- check Minimap Shape
-				minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
-				
-				if ( lC == C and lZ == Z and lx == x and ly == y ) then
-					-- player has not moved since the last update
-					if ( lastZoom ~= Minimap:GetZoom() or self.ForceNextUpdate or minimapRotationEnabled ) then
-						local currentZoom = Minimap:GetZoom();
-						lastZoom = currentZoom;
-						local mapWidth = Minimap:GetWidth();
-						local mapHeight = Minimap:GetHeight();
-						numPerCycle = numPerCycle * 2
-						local count = 0
-						for icon, data in pairs(self.MinimapIcons) do
-							placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, data.dist, data.xDist, data.yDist);
-							
-							count = count + 1
-							if ( count > numPerCycle ) then
-								count = 0
-								yield()
-								-- check if the incremental update cycle needs to be reset 
-								-- because a full update has been run
-								if ( resetIncrementalUpdate ) then
-									break;
-								end
-							end
-						end
-						self.ForceNextUpdate = false;
-					end
-				else
-					local dist, xDelta, yDelta = self:ComputeDistance(lC, lZ, lx, ly, C, Z, x, y);
-					if ( dist ) then
-						local currentZoom = Minimap:GetZoom();
-						lastZoom = currentZoom;
-						local mapWidth = Minimap:GetWidth();
-						local mapHeight = Minimap:GetHeight();
-						local count = 0
-						for icon, data in pairs(self.MinimapIcons) do
-							local xDist = data.xDist - xDelta;
-							local yDist = data.yDist - yDelta;
-							local dist = sqrt(xDist*xDist + yDist*yDist);
-							placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, dist, xDist, yDist);
-							
-							data.dist = dist;
-							data.xDist = xDist;
-							data.yDist = yDist;
-							
-							count = count + 1
-							if ( count >= numPerCycle ) then
-								count = 0
-								yield()
-								-- check if the incremental update cycle needs to be reset 
-								-- because a full update has been run
-								if ( resetIncrementalUpdate ) then
-									break;
-								end
-							end
-						end
-						if not ( resetIncrementalUpdate ) then
-							lastPosition[1] = C;
-							lastPosition[2] = Z;
-							lastPosition[3] = x;
-							lastPosition[4] = y;
-						end
-					else
-						self:RemoveAllMinimapIcons()
-						lastPosition[1] = C;
-						lastPosition[2] = Z;
-						lastPosition[3] = x;
-						lastPosition[4] = y;
-					end
-				end
-			else
-				if not ( self.WorldMapVisible ) then
-					self.processingFrame:Hide();
-				end
-			end
-			
-			-- if we've been reset, then we want to start the new cycle immediately
-			if not ( resetIncrementalUpdate ) then
-				yield()
-			end
+local lastZoom;
+function Astrolabe:UpdateMinimapIconPositions()
+	local C, Z, x, y = self:GetCurrentPlayerPosition();
+	if not ( C and C >= 0 ) then
+		if not ( self.WorldMapVisible ) then
+			self.processingFrame:Hide();
 		end
+		return;
+	end
+	local Minimap = Minimap;
+	local lastPosition = self.LastPlayerPosition;
+	local lC, lZ, lx, ly = unpack(lastPosition);
+	
+	if ( GetCVar("rotateMinimap") ~= "0" ) then
+		minimapRotationEnabled = true;
+	else
+		minimapRotationEnabled = false;
 	end
 	
-	function Astrolabe:UpdateMinimapIconPositions()
-		if ( fullUpdateInProgress ) then
-			-- if we're in the middle a a full update, we want to finish that first
-			self:CalculateMinimapIconPositions()
-		else
-			if ( incrementalUpdateCrashed ) then
-				incrementalUpdateThread = coroutine.wrap(UpdateMinimapIconPositions)
-				incrementalUpdateThread(self) --initialize the thread
+	-- check Minimap Shape
+	minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
+	
+	if ( lC == C and lZ == Z and lx == x and ly == y ) then
+		-- player has not moved since the last update
+		if ( lastZoom ~= Minimap:GetZoom() or self.ForceNextUpdate or minimapRotationEnabled ) then
+			local currentZoom = Minimap:GetZoom();
+			lastZoom = currentZoom;
+			local mapWidth = Minimap:GetWidth();
+			local mapHeight = Minimap:GetHeight();
+			for icon, data in pairs(self.MinimapIcons) do
+				placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, data.dist, data.xDist, data.yDist);
 			end
-			incrementalUpdateCrashed = true
-			incrementalUpdateThread()
-			incrementalUpdateCrashed = false
+			self.ForceNextUpdate = false;
 		end
+	else
+		local dist, xDelta, yDelta = self:ComputeDistance(lC, lZ, lx, ly, C, Z, x, y);
+		if ( dist ) then
+			local currentZoom = Minimap:GetZoom();
+			lastZoom = currentZoom;
+			local mapWidth = Minimap:GetWidth();
+			local mapHeight = Minimap:GetHeight();
+			for icon, data in pairs(self.MinimapIcons) do
+				local xDist = data.xDist - xDelta;
+				local yDist = data.yDist - yDelta;
+				local dist = sqrt(xDist*xDist + yDist*yDist);
+				placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, dist, xDist, yDist);
+				
+				data.dist = dist;
+				data.xDist = xDist;
+				data.yDist = yDist;
+			end
+		else
+			self:RemoveAllMinimapIcons()
+		end
+		
+		lastPosition[1] = C;
+		lastPosition[2] = Z;
+		lastPosition[3] = x;
+		lastPosition[4] = y;
 	end
 end
 
--- Full Update Code
-do
-	-- local variables to track the full update coroutine
-	local fullUpdateCrashed = true
-	local fullUpdateThread
-	
-	local function CalculateMinimapIconPositions( self )
-		yield()
-		
-		while ( true ) do
-			self:DumpNewIconsCache() -- put new/updated icons into the main datacache
-			
-			resetFullUpdate = false -- by definition, the full update is reset if it is here
-			fullUpdateInProgress = true -- set the flag the says a full update is in progress
-			
-			local C, Z, x, y = self:GetCurrentPlayerPosition();
-			if ( C and C >= 0 ) then
-				minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
-				
-				-- check current frame rate
-				local numPerCycle = GetFramerate() * (self.MinimapUpdateMultiplier or 1) * 2
-				
-				-- check Minimap Shape
-				minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
-				
-				local currentZoom = Minimap:GetZoom();
-				lastZoom = currentZoom;
-				local Minimap = Minimap;
-				local mapWidth = Minimap:GetWidth();
-				local mapHeight = Minimap:GetHeight();
-				local count = 0
-				for icon, data in pairs(self.MinimapIcons) do
-					local dist, xDist, yDist = self:ComputeDistance(C, Z, x, y, data.continent, data.zone, data.xPos, data.yPos);
-					if ( dist ) then
-						placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, dist, xDist, yDist);
-						
-						data.dist = dist;
-						data.xDist = xDist;
-						data.yDist = yDist;
-					else
-						self:RemoveIconFromMinimap(icon)
-					end
-					
-					count = count + 1
-					if ( count >= numPerCycle ) then
-						count = 0
-						yield()
-						-- check if we need to restart due to the full update being reset
-						if ( resetFullUpdate ) then
-							break;
-						end
-					end
-				end
-				
-				if not ( resetFullUpdate ) then
-					local lastPosition = self.LastPlayerPosition;
-					lastPosition[1] = C;
-					lastPosition[2] = Z;
-					lastPosition[3] = x;
-					lastPosition[4] = y;
-					
-					resetIncrementalUpdate = true
-				end
-			else
-				if not ( self.WorldMapVisible ) then
-					self.processingFrame:Hide();
-				end
-			end
-			
-			-- if we've been reset, then we want to start the new cycle immediately
-			if not ( resetFullUpdate ) then
-				fullUpdateInProgress = false
-				yield()
-			end
+function Astrolabe:CalculateMinimapIconPositions()
+	local C, Z, x, y = self:GetCurrentPlayerPosition();
+	if not ( C and C >= 0 ) then
+		if not ( self.WorldMapVisible ) then
+			self.processingFrame:Hide();
 		end
+		return;
 	end
 	
-	function Astrolabe:CalculateMinimapIconPositions( reset )
-		if ( fullUpdateCrashed ) then
-			fullUpdateThread = coroutine.wrap(CalculateMinimapIconPositions)
-			fullUpdateThread(self) --initialize the thread
-		elseif ( reset ) then
-			resetFullUpdate = true
-		end
-		fullUpdateCrashed = true
-		fullUpdateThread()
-		fullUpdateCrashed = false
-		
-		-- return result flag
-		if ( fullUpdateInProgress ) then
-			return 1 -- full update started, but did not complete on this cycle
-		
+	if ( GetCVar("rotateMinimap") ~= "0" ) then
+		minimapRotationEnabled = true;
+	else
+		minimapRotationEnabled = false;
+	end
+	
+	-- check Minimap Shape
+	minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
+	
+	local currentZoom = Minimap:GetZoom();
+	lastZoom = currentZoom;
+	local Minimap = Minimap;
+	local mapWidth = Minimap:GetWidth();
+	local mapHeight = Minimap:GetHeight();
+	for icon, data in pairs(self.MinimapIcons) do
+		local dist, xDist, yDist = self:ComputeDistance(C, Z, x, y, data.continent, data.zone, data.xPos, data.yPos);
+		if ( dist ) then
+			placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, dist, xDist, yDist);
+			
+			data.dist = dist;
+			data.xDist = xDist;
+			data.yDist = yDist;
 		else
-			if ( resetIncrementalUpdate ) then
-				return 0 -- update completed
-			else
-				return -1 -- full update did no occur for some reason
-			end
-		
+			self:RemoveIconFromMinimap(icon)
 		end
 	end
+	
+	local lastPosition = self.LastPlayerPosition;
+	lastPosition[1] = C;
+	lastPosition[2] = Z;
+	lastPosition[3] = x;
+	lastPosition[4] = y;
 end
 
 function Astrolabe:GetDistanceToIcon( icon )
@@ -749,21 +590,6 @@ function Astrolabe:Register_OnEdgeChanged_Callback( func, ident )
 	argcheck(func, 2, "function");
 	
 	self.IconsOnEdge_GroupChangeCallbacks[func] = ident;
-end
-
---*****************************************************************************
--- INTERNAL USE ONLY PLEASE!!!
--- Calling this function at the wrong time can cause errors
---*****************************************************************************
-function Astrolabe:DumpNewIconsCache()
-	local MinimapIcons = self.MinimapIcons
-	for icon, data in pairs(AddedOrUpdatedIcons) do
-		MinimapIcons[icon] = data
-		AddedOrUpdatedIcons[icon] = nil
-	end
-	-- we now need to restart any updates that were in progress
-	resetIncrementalUpdate = true
-	resetFullUpdate = true
 end
 
 
@@ -822,7 +648,7 @@ function Astrolabe:OnEvent( frame, event )
 		
 		-- re-calculate all Minimap Icon positions
 		if ( frame:IsVisible() ) then
-			self:CalculateMinimapIconPositions(true);
+			self:CalculateMinimapIconPositions();
 		end
 	
 	elseif ( event == "PLAYER_LEAVING_WORLD" ) then
@@ -833,9 +659,7 @@ function Astrolabe:OnEvent( frame, event )
 		frame:Show();
 		if not ( frame:IsVisible() ) then
 			-- do the minimap recalculation anyways if the OnShow script didn't execute
-			-- this is done to ensure the accuracy of information about icons that were 
-			-- inserted while the Player was in the process of zoning
-			self:CalculateMinimapIconPositions(true);
+			self:CalculateMinimapIconPositions();
 		end
 	
 	elseif ( event == "ZONE_CHANGED_NEW_AREA" ) then
@@ -854,6 +678,13 @@ function Astrolabe:OnUpdate( frame, elapsed )
 		end
 	end
 	
+	-- icon position updates
+	local updateTimer = self.UpdateTimer - elapsed;
+	if ( updateTimer > 0 ) then
+		self.UpdateTimer = updateTimer;
+		return;
+	end
+	self.UpdateTimer = self.MinimapUpdateTime;
 	self:UpdateMinimapIconPositions();
 end
 
@@ -867,19 +698,16 @@ function Astrolabe:OnShow( frame )
 		SetMapZoom(C, Z);
 	else
 		frame:Hide();
-		return
 	end
 	
 	-- re-calculate minimap icon positions
-	self:CalculateMinimapIconPositions(true);
+	self:CalculateMinimapIconPositions();
 end
 
 -- called by AstrolabMapMonitor when all world maps are hidden
 function Astrolabe:AllWorldMapsHidden()
-	if ( IsLoggedIn() ) then
-		self.processingFrame:Hide();
-		self.processingFrame:Show();
-	end
+	self.processingFrame:Hide();
+	self.processingFrame:Show();
 end
 
 
@@ -889,17 +717,15 @@ end
 
 local function activate( newInstance, oldInstance )
 	if ( oldInstance ) then -- this is an upgrade activate
-		if ( oldInstance.DumpNewIconsCache ) then
-			oldInstance:DumpNewIconsCache()
-		end
 		for k, v in pairs(oldInstance) do
-			if ( type(v) ~= "function" and (not configConstants[k]) ) then
+			if ( type(v) ~= "function" ) then
 				newInstance[k] = v;
 			end
 		end
 		Astrolabe = oldInstance;
 	else
 		local frame = CreateFrame("Frame");
+		frame:Hide();
 		newInstance.processingFrame = frame;
 		
 		newInstance.ContinentList = { GetMapContinents() };
@@ -912,10 +738,8 @@ local function activate( newInstance, oldInstance )
 			end
 		end
 	end
-	configConstants = nil -- we don't need this anymore
 	
 	local frame = newInstance.processingFrame;
-	frame:Hide();
 	frame:SetParent("Minimap");
 	frame:UnregisterAllEvents();
 	frame:RegisterEvent("MINIMAP_UPDATE_ZOOM");
@@ -937,8 +761,6 @@ local function activate( newInstance, oldInstance )
 			Astrolabe:OnShow(frame);
 		end
 	);
-	
-	setmetatable(Astrolabe.MinimapIcons, MinimapIconsMetatable)
 end
 
 DongleStub:Register(Astrolabe, activate)
@@ -992,400 +814,394 @@ WorldMapSize = {
 	-- World Map of Azeroth
 	[0] = {
 		parentContinent = 0,
-		height = 29688.932932224,
-		width = 44537.340058402,
+		height = 29687.90575403711,
+		width = 44531.82907938571,
 	},
 	-- Kalimdor
-	{ -- [1]
+	{ --[1]
 		parentContinent = 0,
-		height = 24533.025279205,
-		width = 36800.210572494,
-		xOffset = -8311.793923510446,
-		yOffset = 1815.215685280706,
+		height = 24532.39670836129,
+		width = 36798.56388065484,
+		xOffset = -8310.762035321373,
+		yOffset = 1815.149000954498,
 		zoneData = {
 			Ashenvale = {
-				height = 3843.722811451077,
-				width = 5766.728884700476,
-				xOffset = 15366.76755576002,
-				yOffset = 8126.925260781192,
+				height = 3843.627450950699,
+				width = 5766.471113365881,
+				xOffset = 15366.08027406009,
+				yOffset = 8126.716152815561,
 			},
 			Aszhara = {
-				height = 3381.225696279877,
-				width = 5070.888165752819,
-				xOffset = 20343.90485013144,
-				yOffset = 7458.180046130774,
+				height = 3381.153764845262,
+				width = 5070.669448432522,
+				xOffset = 20342.99178351035,
+				yOffset = 7457.974565554941,
 			},
 			AzuremystIsle = {
-				height = 2714.561862167815,
-				width = 4070.883253576282,
-				xOffset = 9966.70736478994,
-				yOffset = 5460.278138661794,
+				height = 2714.490705490833,
+				width = 4070.691916244019,
+				xOffset = 9966.264785353642,
+				yOffset = 5460.139378090237,
 			},
 			Barrens = {
-				height = 6756.202067150937,
-				width = 10133.44343943073,
-				xOffset = 14443.84117394525,
-				yOffset = 11187.32013604393,
+				height = 6756.028094350823,
+				width = 10132.98626357964,
+				xOffset = 14443.19633043607,
+				yOffset = 11187.03406016663,
 			},
 			BloodmystIsle = {
-				height = 2174.984710698752,
-				width = 3262.517428121028,
-				xOffset = 9541.713418184554,
-				yOffset = 3424.874558234072,
+				height = 2174.923922716305,
+				width = 3262.385067990556,
+				xOffset = 9541.280691875327,
+				yOffset = 3424.790637352245,
 			},
 			Darkshore = {
-				height = 4366.636219106706,
-				width = 6550.06962983463,
-				xOffset = 14125.08809600818,
-				yOffset = 4466.534412478246,
+				height = 4366.52571734943,
+				width = 6549.780280774227,
+				xOffset = 14124.4534386827,
+				yOffset = 4466.419105960455,
 			},
 			Darnassis = {
-				height = 705.7248633938184,
-				width = 1058.342927027606,
-				xOffset = 14128.39258617903,
-				yOffset = 2561.565012455802,
+				height = 705.7102838625474,
+				width = 1058.300884213672,
+				xOffset = 14127.75729935019,
+				yOffset = 2561.497770365213,
 			},
 			Desolace = {
-				height = 2997.895174253872,
-				width = 4495.882023201739,
-				xOffset = 12833.40729836031,
-				yOffset = 12347.72848626745,
+				height = 2997.808472061639,
+				width = 4495.726850591814,
+				xOffset = 12832.80723200791,
+				yOffset = 12347.420176847,
 			},
 			Durotar = {
-				height = 3524.975114832228,
-				width = 5287.558038649864,
-				xOffset = 19029.30699887344,
-				yOffset = 10991.48801260963,
+				height = 3524.884894927208,
+				width = 5287.285801274457,
+				xOffset = 19028.47465485265,
+				yOffset = 10991.20642822035,
 			},
 			Dustwallow = {
-				height = 3499.975146240067,
-				width = 5250.057259791282,
-				xOffset = 18041.79657043901,
-				yOffset = 14833.12751666842,
+				height = 3499.922239823486,
+				width = 5249.824712249077,
+				xOffset = 18040.98829886713,
+				yOffset = 14832.74650226312,
 			},
 			Felwood = {
-				height = 3833.305958270781,
-				width = 5750.062034325837,
-				xOffset = 15425.10163773161,
-				yOffset = 5666.526367166872,
+				height = 3833.206376333298,
+				width = 5749.8046476606,
+				xOffset = 15424.4116748014,
+				yOffset = 5666.381311442202,
 			},
 			Feralas = {
-				height = 4633.30011661694,
-				width = 6950.075260353015,
-				xOffset = 11625.06045254075,
-				yOffset = 15166.45834829251,
+				height = 4633.182754891688,
+				width = 6949.760203962193,
+				xOffset = 11624.54217828119,
+				yOffset = 15166.06954533647,
 			},
 			Moonglade = {
-				height = 1539.572509508711,
-				width = 2308.356845256911,
-				xOffset = 18448.05172159372,
-				yOffset = 4308.20254319874,
+				height = 1539.548478194226,
+				width = 2308.253559286662,
+				xOffset = 18447.22668103606,
+				yOffset = 4308.084192710569,
 			},
 			Mulgore = {
-				height = 3424.975945100366,
-				width = 5137.555355060729,
-				xOffset = 15018.84750987729,
-				yOffset = 13072.72336630089,
+				height = 3424.88834791471,
+				width = 5137.32138887616,
+				xOffset = 15018.17633401988,
+				yOffset = 13072.38917227894,
 			},
 			Ogrimmar = {
-				height = 935.4100697456119,
-				width = 1402.621211455915,
-				xOffset = 20747.42666130799,
-				yOffset = 10525.94769396873,
+				height = 935.3750279485016,
+				width = 1402.563051365538,
+				xOffset = 20746.49533101771,
+				yOffset = 10525.68532631853,
 			},
 			Silithus = {
-				height = 2322.899061688691,
-				width = 3483.371975265956,
-				xOffset = 14529.25864164056,
-				yOffset = 18758.10068625832,
+				height = 2322.839629859208,
+				width = 3483.224287356748,
+				xOffset = 14528.60591761034,
+				yOffset = 18757.61998086822,
 			},
 			StonetalonMountains = {
-				height = 3256.226691571251,
-				width = 4883.385977951072,
-				xOffset = 13820.91773479217,
-				yOffset = 9883.162892509636,
+				height = 3256.141917023559,
+				width = 4883.173287670144,
+				xOffset = 13820.29750397374,
+				yOffset = 9882.909063258192,
 			},
 			Tanaris = {
-				height = 4599.965662459992,
-				width = 6900.073766103516,
-				xOffset = 17285.539010128,
-				yOffset = 18674.7673661939,
+				height = 4599.847335452488,
+				width = 6899.765399158026,
+				xOffset = 17284.7655865671,
+				yOffset = 18674.28905369955,
 			},
 			Teldrassil = {
-				height = 3393.726923234355,
-				width = 5091.720903621394,
-				xOffset = 13252.16205313556,
-				yOffset = 968.6418744503761,
+				height = 3393.632169760774,
+				width = 5091.467863261982,
+				xOffset = 13251.58449896318,
+				yOffset = 968.6223632831094,
 			},
 			TheExodar = {
-				height = 704.6826864472878,
-				width = 1056.781131437323,
-				xOffset = 10533.08314172693,
-				yOffset = 6276.205331713322,
+				height = 704.6641703983866,
+				width = 1056.732317707213,
+				xOffset = 10532.61275516805,
+				yOffset = 6276.045028807911,
 			},
 			ThousandNeedles = {
-				height = 2933.312180524323,
-				width = 4400.046681282484,
-				xOffset = 17500.12437633161,
-				yOffset = 16766.44698282704,
+				height = 2933.241274801781,
+				width = 4399.86408093722,
+				xOffset = 17499.32929341832,
+				yOffset = 16766.0151133423,
 			},
 			ThunderBluff = {
-				height = 695.8282721105132,
-				width = 1043.761263579803,
-				xOffset = 16550.11410485969,
-				yOffset = 13649.80260929285,
+				height = 695.8116150081206,
+				width = 1043.762849319158,
+				xOffset = 16549.32009877855,
+				yOffset = 13649.45129927044,
 			},
 			UngoroCrater = {
-				height = 2466.647220780505,
-				width = 3700.040077455555,
-				xOffset = 16533.44712326324,
-				yOffset = 18766.4334494793,
+				height = 2466.588521980952,
+				width = 3699.872808671186,
+				xOffset = 16532.70803775362,
+				yOffset = 18765.95157787033,
 			},
 			Winterspring = {
-				height = 4733.299561046713,
-				width = 7100.077599808275,
-				xOffset = 17383.45606038691,
-				yOffset = 4266.536453420381,
+				height = 4733.190938744951,
+				width = 7099.756078049357,
+				xOffset = 17382.67868933954,
+				yOffset = 4266.421320915686,
 			},
 		},
 	},
 	-- Eastern Kingdoms
-	{ -- [2]
+	{ --[2]
 		parentContinent = 0,
-		height = 27149.795290881,
-		width = 40741.175327834,
-		xOffset = 14407.1086092051,
-		yOffset = 290.3230897653046,
+		height = 25098.84390074281,
+		width = 37649.15159852673,
+		xOffset = 15525.32200715066,
+		yOffset = 672.3934326738229,
 		zoneData = {
 			Alterac = {
-				height = 1866.673586850316,
-				width = 2800.000436369314,
-				xOffset = 17388.63313899802,
-				yOffset = 9676.382605411302,
+				height = 1866.508741236576,
+				width = 2799.820894040741,
+				xOffset = 16267.51182664554,
+				yOffset = 7693.598754637632,
 			},
 			Arathi = {
-				height = 2400.0092446309,
-				width = 3599.999380663208,
-				xOffset = 19038.63328411639,
-				yOffset = 11309.72201070757,
+				height = 2399.784956908336,
+				width = 3599.78645678886,
+				xOffset = 17917.40598190062,
+				yOffset = 9326.804744097401,
 			},
 			Badlands = {
-				height = 1658.340965090961,
-				width = 2487.498490907989,
-				xOffset = 20251.1337564772,
-				yOffset = 17065.99404487956,
+				height = 1658.195027852759,
+				width = 2487.343589680943,
+				xOffset = 19129.83542887301,
+				yOffset = 15082.55526717644,
 			},
 			BlastedLands = {
-				height = 2233.343415116865,
-				width = 3349.999381676505,
-				xOffset = 19413.63362865575,
-				yOffset = 21743.09582955139,
+				height = 2233.146573433955,
+				width = 3349.808966078055,
+				xOffset = 18292.37876312771,
+				yOffset = 19759.24272564734,
 			},
 			BurningSteppes = {
-				height = 1952.091972408385,
-				width = 2929.16694293186,
-				xOffset = 18438.633261567,
-				yOffset = 18207.66513379744,
+				height = 1951.911155356982,
+				width = 2928.988452241535,
+				xOffset = 17317.44291506163,
+				yOffset = 16224.12640057407,
 			},
 			DeadwindPass = {
-				height = 1666.673818905317,
-				width = 2499.999888210889,
-				xOffset = 19005.29993968603,
-				yOffset = 21043.0932328648,
+				height = 1666.528298197048,
+				width = 2499.848163715574,
+				xOffset = 17884.07519016362,
+				yOffset = 19059.30117481421,
 			},
 			DunMorogh = {
-				height = 3283.345779814337,
-				width = 4924.998791911572,
-				xOffset = 16369.8840376619,
-				yOffset = 15053.48695195484,
+				height = 3283.064682642022,
+				width = 4924.664537147015,
+				xOffset = 15248.84370721237,
+				yOffset = 13070.22369811241,
 			},
 			Duskwood = {
-				height = 1800.007653419076,
-				width = 2699.999669551933,
-				xOffset = 17338.63354148773,
-				yOffset = 20893.09259181909,
+				height = 1799.84874595001,
+				width = 2699.837284973949,
+				xOffset = 16217.51007473156,
+				yOffset = 18909.31475362112,
 			},
 			EasternPlaguelands = {
-				height = 2581.259876367526,
-				width = 3870.832396995169,
-				xOffset = 20357.38356562001,
-				yOffset = 7376.373692430854,
+				height = 2581.024511737268,
+				width = 3870.596078314358,
+				xOffset = 19236.07699848783,
+				yOffset = 5393.799386328108,
 			},
 			Elwynn = {
-				height = 2314.591970284716,
-				width = 3470.831971412848,
-				xOffset = 16636.55099386465,
-				yOffset = 19116.0027890283,
+				height = 2314.38613060264,
+				width = 3470.62593362794,
+				xOffset = 15515.46777926721,
+				yOffset = 17132.38313881497,
 			},
 			EversongWoods = {
-				height = 3283.346366715794,
-				width = 4924.998483501337,
-				xOffset = 20259.46725884782,
-				yOffset = 2534.687567863296,
+				height = 3283.057803444214,
+				width = 4924.70470173181,
+				xOffset = 19138.16325760612,
+				yOffset = 552.5351270080572,
 			},
 			Ghostlands = {
-				height = 2200.008945183733,
-				width = 3300.002855743766,
-				xOffset = 21055.29786070095,
-				yOffset = 5309.698546426793,
+				height = 2199.788221727843,
+				width = 3299.755735439147,
+				xOffset = 19933.969945598,
+				yOffset = 3327.317139912411,
 			},
 			Hilsbrad = {
-				height = 2133.341840477916,
-				width = 3200.000391416799,
-				xOffset = 17105.29968281043,
-				yOffset = 10776.38652289269,
+				height = 2133.153088717906,
+				width = 3199.802496078764,
+				xOffset = 15984.19170342619,
+				yOffset = 8793.505832296016,
 			},
 			Hinterlands = {
-				height = 2566.676323518885,
-				width = 3849.998492380244,
-				xOffset = 19746.96704279287,
-				yOffset = 9709.715966757984,
+				height = 2566.448674847725,
+				width = 3849.77134323942,
+				xOffset = 18625.69536724846,
+				yOffset = 7726.929725104341,
 			},
 			Ironforge = {
-				height = 527.6056771582851,
-				width = 790.6252518322632,
-				xOffset = 18885.55815177769,
-				yOffset = 15745.64795436116,
+				height = 527.5626661642974,
+				width = 790.5745810546713,
+				xOffset = 17764.34206355846,
+				yOffset = 13762.32403658607,
 			},
 			LochModan = {
-				height = 1839.590356444166,
-				width = 2758.33360594204,
-				xOffset = 20165.71623436714,
-				yOffset = 15663.90573348468,
+				height = 1839.436067817912,
+				width = 2758.158752877019,
+				xOffset = 19044.42466174755,
+				yOffset = 13680.58746225864,
 			},
 			Redridge = {
-				height = 1447.922213393415,
-				width = 2170.833229570681,
-				xOffset = 19742.79960560691,
-				yOffset = 19751.42209395218,
+				height = 1447.811817383856,
+				width = 2170.704876735185,
+				xOffset = 18621.52904187992,
+				yOffset = 17767.73128664901,
 			},
 			SearingGorge = {
-				height = 1487.505203229038,
-				width = 2231.250200533406,
-				xOffset = 18494.88325409831,
-				yOffset = 17276.41231120941,
+				height = 1487.371558351205,
+				width = 2231.119799153945,
+				xOffset = 17373.68649889545,
+				yOffset = 15292.9566475719,
 			},
 			SilvermoonCity = {
-				height = 806.7751969249011,
-				width = 1211.458551923779,
-				xOffset = 22172.71573747824,
-				yOffset = 3422.647395021269,
+				height = 806.6680775210333,
+				width = 1211.384457945605,
+				xOffset = 21051.29911245071,
+				yOffset = 1440.439646345552,
 			},
 			Silverpine = {
-				height = 2800.011187621704,
-				width = 4200.000573479695,
-				xOffset = 14721.96646274185,
-				yOffset = 9509.714741967448,
+				height = 2799.763349841058,
+				width = 4199.739879721531,
+				xOffset = 13601.00798540562,
+				yOffset = 7526.945768538925,
 			},
 			Stormwind = {
-				height = 896.3598437319051,
-				width = 1344.270269919159,
-				xOffset = 16790.9956264139,
-				yOffset = 19455.27053790398,
+				height = 896.2784132739149,
+				width = 1344.138055148283,
+				xOffset = 15669.93346231942,
+				yOffset = 17471.62163820253,
 			},
 			Stranglethorn = {
-				height = 4254.18312444072,
-				width = 6381.248484543122,
-				xOffset = 15951.13375783437,
-				yOffset = 22345.18258706305,
-			},
-			Sunwell = {
-				height = 2218.756638064149,
-				width = 3327.084777999942,
-				xOffset = 21074.0484502027,
-				yOffset = 7.595267688679496,
+				height = 4253.796738213571,
+				width = 6380.866711475876,
+				xOffset = 14830.09122763351,
+				yOffset = 20361.27611706414,
 			},
 			SwampOfSorrows = {
-				height = 1529.173695058727,
-				width = 2293.753807610138,
-				xOffset = 20394.88183258176,
-				yOffset = 20797.25913588854,
+				height = 1529.04028583782,
+				width = 2293.606089974149,
+				xOffset = 19273.57577346738,
+				yOffset = 18813.48829580375,
 			},
 			Tirisfal = {
-				height = 3012.510490816506,
-				width = 4518.749381850256,
-				xOffset = 15138.63417865412,
-				yOffset = 7338.874503644808,
+				height = 3012.244783356771,
+				width = 4518.469744413802,
+				xOffset = 14017.64852522109,
+				yOffset = 5356.296558943325,
 			},
 			Undercity = {
-				height = 640.1067253394195,
-				width = 959.3752013853186,
-				xOffset = 17298.77399735696,
-				yOffset = 9298.435338905521,
+				height = 640.0492683780853,
+				width = 959.3140238076666,
+				xOffset = 16177.65630384973,
+				yOffset = 7315.685533181013,
 			},
 			WesternPlaguelands = {
-				height = 2866.677213191588,
-				width = 4299.998717025251,
-				xOffset = 17755.30067544475,
-				yOffset = 7809.708745090687,
+				height = 2866.410476553068,
+				width = 4299.7374000546,
+				xOffset = 16634.14908983872,
+				yOffset = 5827.092974820261,
 			},
 			Westfall = {
-				height = 2333.342039971409,
-				width = 3500.001170481545,
-				xOffset = 15155.29922254704,
-				yOffset = 20576.42557120998,
+				height = 2333.132106534445,
+				width = 3499.786489780177,
+				xOffset = 14034.31142029944,
+				yOffset = 18592.67765947875,
 			},
 			Wetlands = {
-				height = 2756.260286844545,
-				width = 4135.414389381328,
-				xOffset = 18561.55091405621,
-				yOffset = 13324.31339403164,
+				height = 2756.004767589141,
+				width = 4135.166184805389,
+				xOffset = 17440.35277057554,
+				yOffset = 11341.20698670613,
 			},
 		},
 	},
 	-- Outland
-	{ -- [3]
+	{ --[3]
 		parentContinent = 3,
-		height = 11642.355227091,
-		width = 17463.987300595,
+		height = 11642.3552270912,
+		width = 17463.5328406368,
 		zoneData = {
 			BladesEdgeMountains = {
-				height = 3616.553511321226,
-				width = 5424.972055480694,
-				xOffset = 4150.184214583454,
-				yOffset = 1412.98225932006,
+				height = 3616.553353533977,
+				width = 5424.84803598309,
+				xOffset = 4150.068157139826,
+				yOffset = 1412.982266241851,
 			},
 			Hellfire = {
-				height = 3443.642450656037,
-				width = 5164.556104714847,
-				xOffset = 7456.417230912641,
-				yOffset = 4339.973750274888,
+				height = 3443.642890402687,
+				width = 5164.421615455519,
+				xOffset = 7456.223236253186,
+				yOffset = 4339.973528794677,
 			},
 			Nagrand = {
-				height = 3683.218538167106,
-				width = 5524.971495006054,
-				xOffset = 2700.192018521809,
-				yOffset = 5779.511974812862,
+				height = 3683.218386203915,
+				width = 5524.827295176373,
+				xOffset = 2700.121400200201,
+				yOffset = 5779.512212073806,
 			},
 			Netherstorm = {
-				height = 3716.550608724641,
-				width = 5574.970083688359,
-				xOffset = 7512.667416095402,
-				yOffset = 365.0979827402549,
+				height = 3716.547708910237,
+				width = 5574.82788866266,
+				xOffset = 7512.470386633603,
+				yOffset = 365.0992858464317,
 			},
 			ShadowmoonValley = {
-				height = 3666.552070430093,
-				width = 5499.971770418525,
-				xOffset = 8770.993458280615,
-				yOffset = 7769.033264592288,
+				height = 3666.547917042888,
+				width = 5499.827432644566,
+				xOffset = 8770.765422136874,
+				yOffset = 7769.034259125071,
 			},
 			ShattrathCity = {
-				height = 870.8059516186869,
-				width = 1306.242821388422,
-				xOffset = 6860.744740098593,
-				yOffset = 7295.086120456203,
+				height = 870.8063021892297,
+				width = 1306.210386847456,
+				xOffset = 6860.565394341991,
+				yOffset = 7295.086145447915,
 			},
 			TerokkarForest = {
-				height = 3599.887783533737,
-				width = 5399.971351016305,
-				xOffset = 5912.675516998205,
-				yOffset = 6821.146319031154,
+				height = 3599.889712038368,
+				width = 5399.832305361811,
+				xOffset = 5912.521284664757,
+				yOffset = 6821.146112637057,
 			},
 			Zangarmarsh = {
-				height = 3351.978710181591,
-				width = 5027.057650868489,
-				xOffset = 3521.020638264577,
-				yOffset = 3885.821278366336,
+				height = 3351.978685113859,
+				width = 5026.925554043871,
+				xOffset = 3520.930685571132,
+				yOffset = 3885.821388791224,
 			},
 		},
 	},
@@ -1410,6 +1226,6 @@ for continent, zones in pairs(Astrolabe.ContinentList) do
 end
 
 
--- register this library with AstrolabeMapMonitor, this will cause a full update if PLAYER_LOGIN has already fired
+-- register this library with AstrolabeMapMonitor, this will also cause a full update
 local AstrolabeMapMonitor = DongleStub("AstrolabeMapMonitor");
 AstrolabeMapMonitor:RegisterAstrolabeLibrary(Astrolabe, LIBRARY_VERSION_MAJOR);
