@@ -2,17 +2,18 @@
 Name: Astrolabe
 Revision: $Rev$
 $Date$
-Author(s): Esamynn (esamynn@wowinterface.com)
+Author(s): Esamynn (esamynn at wowinterface.com)
 Inspired By: Gatherer by Norganna
-             MapLibrary by Kristofer Karlsson (krka@kth.se)
+             MapLibrary by Kristofer Karlsson (krka at kth.se)
 Documentation: http://wiki.esamynn.org/Astrolabe
 SVN: http://svn.esamynn.org/astrolabe/
 Description:
 	This is a library for the World of Warcraft UI system to place
-	icons accurately on both the Minimap and the Worldmaps accurately
-	and maintain the accuracy of those positions.  
+	icons accurately on both the Minimap and on Worldmaps.  
+	This library also manages and updates the position of Minimap icons 
+	automatically.  
 
-Copyright (C) 2006-2007 James Carrothers
+Copyright (C) 2006-2008 James Carrothers
 
 License:
 	This library is free software; you can redistribute it and/or
@@ -73,6 +74,18 @@ Astrolabe.IconsOnEdgeChanged = false;
 -- This variable indicates whether we know of a visible World Map or not.  
 -- The state of this variable is controlled by the AstrolabeMapMonitor library.  
 Astrolabe.WorldMapVisible = false;
+
+
+--------------------------------------------------------------------------------------------------------------
+-- Local Pointers for often used API functions
+--------------------------------------------------------------------------------------------------------------
+
+local twoPi = math.pi * 2;
+local atan2 = math.atan2;
+local sin = math.sin;
+local cos = math.cos;
+local abs = math.abs;
+local sqrt = math.sqrt;
 
 
 --------------------------------------------------------------------------------------------------------------
@@ -328,16 +341,16 @@ end
 -- Minimap Icon Placement
 --------------------------------------------------------------------------------------------------------------
 
+--*****************************************************************************
 -- local variables specifically for use in this section
+--*****************************************************************************
 local minimapRotationEnabled = false;
 local minimapShape = false;
+
+-- I don't cache the actual direction information because I don't want to 
+-- encur the work required to retrieve it unless I'm actually going to use the information.  
 local MinimapCompassRing = MiniMapCompassRing;
-local twoPi = math.pi * 2;
-local atan2 = math.atan2;
-local sin = math.sin;
-local cos = math.cos;
-local abs = math.abs;
-local sqrt = math.sqrt;
+
 
 local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, icon, dist, xDist, yDist )
 	local mapDiameter;
@@ -420,11 +433,7 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 	iconData.xDist = xDist;
 	iconData.yDist = yDist;
 	
-	if ( GetCVar("rotateMinimap") ~= "0" ) then
-		minimapRotationEnabled = true;
-	else
-		minimapRotationEnabled = false;
-	end
+	minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
 	
 	-- check Minimap Shape
 	minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
@@ -470,11 +479,7 @@ function Astrolabe:UpdateMinimapIconPositions()
 	local lastPosition = self.LastPlayerPosition;
 	local lC, lZ, lx, ly = unpack(lastPosition);
 	
-	if ( GetCVar("rotateMinimap") ~= "0" ) then
-		minimapRotationEnabled = true;
-	else
-		minimapRotationEnabled = false;
-	end
+	minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
 	
 	-- check Minimap Shape
 	minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
@@ -528,11 +533,7 @@ function Astrolabe:CalculateMinimapIconPositions()
 		return;
 	end
 	
-	if ( GetCVar("rotateMinimap") ~= "0" ) then
-		minimapRotationEnabled = true;
-	else
-		minimapRotationEnabled = false;
-	end
+	minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
 	
 	-- check Minimap Shape
 	minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
@@ -659,6 +660,8 @@ function Astrolabe:OnEvent( frame, event )
 		frame:Show();
 		if not ( frame:IsVisible() ) then
 			-- do the minimap recalculation anyways if the OnShow script didn't execute
+			-- this is done to ensure the accuracy of information about icons that were 
+			-- inserted while the Player was in the process of zoning
 			self:CalculateMinimapIconPositions();
 		end
 	
@@ -698,6 +701,7 @@ function Astrolabe:OnShow( frame )
 		SetMapZoom(C, Z);
 	else
 		frame:Hide();
+		return
 	end
 	
 	-- re-calculate minimap icon positions
@@ -706,8 +710,10 @@ end
 
 -- called by AstrolabMapMonitor when all world maps are hidden
 function Astrolabe:AllWorldMapsHidden()
-	self.processingFrame:Hide();
-	self.processingFrame:Show();
+	if ( IsLoggedIn() ) then
+		self.processingFrame:Hide();
+		self.processingFrame:Show();
+	end
 end
 
 
@@ -725,7 +731,6 @@ local function activate( newInstance, oldInstance )
 		Astrolabe = oldInstance;
 	else
 		local frame = CreateFrame("Frame");
-		frame:Hide();
 		newInstance.processingFrame = frame;
 		
 		newInstance.ContinentList = { GetMapContinents() };
@@ -740,6 +745,7 @@ local function activate( newInstance, oldInstance )
 	end
 	
 	local frame = newInstance.processingFrame;
+	frame:Hide();
 	frame:SetParent("Minimap");
 	frame:UnregisterAllEvents();
 	frame:RegisterEvent("MINIMAP_UPDATE_ZOOM");
@@ -1232,6 +1238,6 @@ for continent, zones in pairs(Astrolabe.ContinentList) do
 end
 
 
--- register this library with AstrolabeMapMonitor, this will also cause a full update
+-- register this library with AstrolabeMapMonitor, this will cause a full update if PLAYER_LOGIN has already fired
 local AstrolabeMapMonitor = DongleStub("AstrolabeMapMonitor");
 AstrolabeMapMonitor:RegisterAstrolabeLibrary(Astrolabe, LIBRARY_VERSION_MAJOR);
