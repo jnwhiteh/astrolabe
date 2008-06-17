@@ -79,7 +79,7 @@ Astrolabe.MinimapIcons = {};
 Astrolabe.IconsOnEdge = {};
 Astrolabe.IconsOnEdge_GroupChangeCallbacks = {};
 
-Astrolabe.UpdateTimer = 0;
+Astrolabe.MinimapIconCount = 0
 Astrolabe.ForceNextUpdate = false;
 Astrolabe.IconsOnEdgeChanged = false;
 
@@ -453,15 +453,19 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 		return -1;
 	end
 	
-	-- we know this icon's position is valid, so we need to make sure the icon placement 
-	-- system is active
-	self.processingFrame:Show()
-	
 	local iconData = GetWorkingTable(icon);
 	if ( self.MinimapIcons[icon] ) then
 		self.MinimapIcons[icon] = nil;
+	elseif not ( AddedOrUpdatedIcons[icon] ) then
+		self.MinimapIconCount = self.MinimapIconCount + 1
 	end
 	AddedOrUpdatedIcons[icon] = iconData
+	
+	-- We know this icon's position is valid, so we need to make sure the icon placement 
+	-- system is active.  We call this here so that if this is the first icon being added to 
+	-- and empty buffer, the full recalc will not completely redo the work done by this function 
+	-- because the icon had not yet actually been placed in the buffer.  
+	self.processingFrame:Show()
 	
 	iconData.continent = continent;
 	iconData.zone = zone;
@@ -496,10 +500,13 @@ function Astrolabe:RemoveIconFromMinimap( icon )
 	self.IconsOnEdge[icon] = nil;
 	icon:Hide();
 	
-	if not ( next(self.MinimapIcons) or next(AddedOrUpdatedIcons) ) then
+	local MinimapIconCount = self.MinimapIconCount - 1
+	if ( MinimapIconCount <= 0 ) then
 		-- no icons left to manage
 		self.processingFrame:Hide()
+		MinimapIconCount = 0 -- because I'm paranoid
 	end
+	self.MinimapIconCount = MinimapIconCount
 	
 	return 0;
 end
@@ -513,6 +520,7 @@ function Astrolabe:RemoveAllMinimapIcons()
 		IconsOnEdge[k] = nil;
 		k:Hide();
 	end
+	self.MinimapIconCount = 0
 	self.processingFrame:Hide()
 end
 
@@ -862,7 +870,7 @@ function Astrolabe:OnEvent( frame, event )
 		end
 	
 	elseif ( event == "PLAYER_LEAVING_WORLD" ) then
-		frame:Hide();
+		frame:Hide(); -- yes, I know this is redunant
 		self:RemoveAllMinimapIcons(); --dump all minimap icons
 	
 	elseif ( event == "PLAYER_ENTERING_WORLD" ) then
@@ -906,10 +914,10 @@ function Astrolabe:OnShow( frame )
 		return
 	end
 	
-	if ( next(self.MinimapIcons) or next(AddedOrUpdatedIcons) ) then
-		-- re-calculate minimap icon positions
-		self:CalculateMinimapIconPositions(true);
-	else
+	-- re-calculate minimap icon positions
+	self:CalculateMinimapIconPositions(true);
+	
+	if ( self.MinimapIconCount <= 0 ) then
 		-- no icons left to manage
 		self.processingFrame:Hide()
 	end
