@@ -1440,6 +1440,102 @@ WorldMapSize = {
 	},
 }
 
+--- WotLK Adjustments
+if ( GetBuildInfo():sub(1, 3) == "3.0" ) then
+	WorldMapSize[1].height = 24533.025279205;
+	WorldMapSize[1].width = 36800.210572494;
+	WorldMapSize[1].xOffset = -8590.409362625034;
+	WorldMapSize[1].yOffset = 5628.694276155668;
+	
+	WorldMapSize[2].height = 27149.795290881;
+	WorldMapSize[2].width = 40741.175327834;
+	WorldMapSize[2].xOffset = 18542.31268111796;
+	WorldMapSize[2].yOffset = 3585.574682467752;
+	
+	WorldMapSize[2].zoneData.Stormwind = {
+		height = 1158.33686894901,
+		width = 1737.498058940429,
+		xOffset = 16449.05164642256,
+		yOffset = 19172.25350774846,
+	}
+	
+	WorldMapSize[4] = {
+		parentContinent = 0,
+		height = 11834.31067391958,
+		width = 17751.3936186856,
+		xOffset = 16020.94093549576,
+		yOffset = 454.2464807713226,
+		zoneData = {
+			BoreanTundra = {
+				height = 3843.765503862232,
+				width = 5764.58206497758,
+				xOffset = 646.3186767730767,
+				yOffset = 5695.480016983896,
+			},
+			CrystalsongForest = {
+				height = 1814.590053385046,
+				width = 2722.916164555434,
+				xOffset = 7773.400227973558,
+				yOffset = 4091.307437548815,
+			},
+			Dalaran = {
+				height = 553.3419356683534,
+				width = 830.014625253355,
+				xOffset = 8164.640128758279,
+				yOffset = 4526.722218200071,
+			},
+			Dragonblight = {
+				height = 3739.597759999098,
+				width = 5608.331259502691,
+				xOffset = 5590.067753073641,
+				yOffset = 5018.394106536425,
+			},
+			GrizzlyHills = {
+				height = 3500.013349296343,
+				width = 5249.9986179934,
+				xOffset = 10327.56614428777,
+				yOffset = 5076.727864214266,
+			},
+			HowlingFjord = {
+				height = 4031.266275060274,
+				width = 6045.831339550668,
+				xOffset = 10615.0658552538,
+				yOffset = 7476.736868262738,
+			},
+			IcecrownGlacier = {
+				height = 4181.266116737856,
+				width = 6270.831861693458,
+				xOffset = 3304.65133149085,
+				yOffset = 1166.296192718834,
+			},
+			LakeWintergrasp = {
+				height = 1983.342901980711,
+				width = 2974.999377667768,
+				xOffset = 4887.984320612982,
+				yOffset = 4876.725348039468,
+			},
+			SholazarBasin = {
+				height = 2904.177559586215,
+				width = 4356.248328680455,
+				xOffset = 2287.985279107324,
+				yOffset = 3305.887993444818,
+			},
+			TheStormPeaks = {
+				height = 4741.684940421732,
+				width = 7112.498205872217,
+				xOffset = 7375.483315518691,
+				yOffset = 395.4596828327046,
+			},
+			ZulDrak = {
+				height = 3329.179510740043,
+				width = 4993.747919923504,
+				xOffset = 9817.150055203074,
+				yOffset = 2924.636381254688,
+			},
+		},
+	}
+end
+
 local zeroData;
 zeroData = { xOffset = 0, height = 0, yOffset = 0, width = 0, __index = function() return zeroData end };
 setmetatable(zeroData, zeroData);
