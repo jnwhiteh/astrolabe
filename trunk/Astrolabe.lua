@@ -79,7 +79,7 @@ Astrolabe.MinimapIcons = {};
 Astrolabe.IconsOnEdge = {};
 Astrolabe.IconsOnEdge_GroupChangeCallbacks = {};
 
-Astrolabe.UpdateTimer = 0;
+Astrolabe.MinimapIconCount = 0
 Astrolabe.ForceNextUpdate = false;
 Astrolabe.IconsOnEdgeChanged = false;
 
@@ -102,7 +102,9 @@ local cos = math.cos;
 local abs = math.abs;
 local sqrt = math.sqrt;
 local min = math.min
+local max = math.max
 local yield = coroutine.yield
+local GetFramerate = GetFramerate
 
 
 --------------------------------------------------------------------------------------------------------------
@@ -117,11 +119,11 @@ end
 
 local function argcheck(value, num, ...)
 	assert(1, type(num) == "number", "Bad argument #2 to 'argcheck' (number expected, got " .. type(level) .. ")")
-
+	
 	for i=1,select("#", ...) do
 		if type(value) == select(i, ...) then return end
 	end
-
+	
 	local types = strjoin(", ", ...)
 	local name = string.match(debugstack(2,2,0), ": in function [`<](.-)['>]")
 	error(string.format("Bad argument #%d to 'Astrolabe.%s' (%s expected, got %s)", num, name, types, type(value)), 3)
@@ -364,9 +366,8 @@ end
 local minimapRotationEnabled = false;
 local minimapShape = false;
 
--- I don't cache the actual direction information because I don't want to 
--- encur the work required to retrieve it unless I'm actually going to use the information.  
 local MinimapCompassRing = MiniMapCompassRing;
+local minimapRotationOffset = -MinimapCompassRing:GetFacing()
 
 
 local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, icon, dist, xDist, yDist )
@@ -384,11 +385,25 @@ local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, ic
 	local isRound = true;
 	
 	if ( minimapRotationEnabled ) then
-		-- for the life of me, I cannot figure out why the following 
-		-- math works, but it does
-		local dir = atan2(xDist, yDist) + MinimapCompassRing:GetFacing();
-		xDist = dist * sin(dir);
-		yDist = dist * cos(dir);
+		local sinTheta = sin(minimapRotationOffset)
+		local cosTheta = cos(minimapRotationOffset)
+		--[[
+		Math Note
+		The math that is acutally going on in the next 3 lines is:
+			local dx, dy = xDist, -yDist
+			xDist = (dx * cosTheta) + (dy * sinTheta)
+			yDist = -((-dx * sinTheta) + (dy * cosTheta))
+		
+		This is because the origin for map coordinates is the top left corner
+		of the map, not the bottom left, and so we have to reverse the vertical 
+		distance when doing the our rotation, and then reverse the result vertical 
+		distance because this rotation formula gives us a result with the origin based 
+		in the bottom left corner (of the (+, +) quadrant).  
+		The actual code is a simplification of the above.  
+		]]
+		local dx, dy = xDist, yDist
+		xDist = (dx * cosTheta) - (dy * sinTheta)
+		yDist = (dx * sinTheta) + (dy * cosTheta)
 	end
 	
 	if ( minimapShape and not (xDist == 0 or yDist == 0) ) then
@@ -402,7 +417,7 @@ local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, ic
 	
 	-- for non-circular portions of the Minimap edge
 	if not ( isRound ) then
-		dist = (abs(xDist) > abs(yDist)) and abs(xDist) or abs(yDist);
+		dist = max(abs(xDist), abs(yDist))
 	end
 
 	if ( (dist + iconDiameter) > mapRadius ) then
@@ -437,11 +452,20 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 		--icon's position has no meaningful position relative to the player's current location
 		return -1;
 	end
+	
 	local iconData = GetWorkingTable(icon);
 	if ( self.MinimapIcons[icon] ) then
 		self.MinimapIcons[icon] = nil;
+	elseif not ( AddedOrUpdatedIcons[icon] ) then
+		self.MinimapIconCount = self.MinimapIconCount + 1
 	end
 	AddedOrUpdatedIcons[icon] = iconData
+	
+	-- We know this icon's position is valid, so we need to make sure the icon placement 
+	-- system is active.  We call this here so that if this is the first icon being added to 
+	-- and empty buffer, the full recalc will not completely redo the work done by this function 
+	-- because the icon had not yet actually been placed in the buffer.  
+	self.processingFrame:Show()
 	
 	iconData.continent = continent;
 	iconData.zone = zone;
@@ -452,6 +476,9 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 	iconData.yDist = yDist;
 	
 	minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
+	if ( minimapRotationEnabled ) then
+		minimapRotationOffset = -MinimapCompassRing:GetFacing()
+	end
 	
 	-- check Minimap Shape
 	minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
@@ -465,25 +492,36 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 end
 
 function Astrolabe:RemoveIconFromMinimap( icon )
-	if not ( self.MinimapIcons[icon] ) then
+	if not ( self.MinimapIcons[icon] or AddedOrUpdatedIcons[icon] ) then
 		return 1;
 	end
 	AddedOrUpdatedIcons[icon] = nil
 	self.MinimapIcons[icon] = nil;
 	self.IconsOnEdge[icon] = nil;
 	icon:Hide();
+	
+	local MinimapIconCount = self.MinimapIconCount - 1
+	if ( MinimapIconCount <= 0 ) then
+		-- no icons left to manage
+		self.processingFrame:Hide()
+		MinimapIconCount = 0 -- because I'm paranoid
+	end
+	self.MinimapIconCount = MinimapIconCount
+	
 	return 0;
 end
 
 function Astrolabe:RemoveAllMinimapIcons()
 	self:DumpNewIconsCache()
-	local minimapIcons = self.MinimapIcons;
+	local MinimapIcons = self.MinimapIcons;
 	local IconsOnEdge = self.IconsOnEdge;
-	for k, v in pairs(minimapIcons) do
-		minimapIcons[k] = nil;
+	for k, v in pairs(MinimapIcons) do
+		MinimapIcons[k] = nil;
 		IconsOnEdge[k] = nil;
 		k:Hide();
 	end
+	self.MinimapIconCount = 0
+	self.processingFrame:Hide()
 end
 
 local lastZoom; -- to remember the last seen Minimap zoom level
@@ -514,6 +552,9 @@ do
 				local lC, lZ, lx, ly = unpack(lastPosition);
 				
 				minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
+				if ( minimapRotationEnabled ) then
+					minimapRotationOffset = -MinimapCompassRing:GetFacing()
+				end
 				
 				-- check current frame rate
 				local numPerCycle = min(50, GetFramerate() * (self.MinimapUpdateMultiplier or 1))
@@ -636,6 +677,9 @@ do
 			local C, Z, x, y = self:GetCurrentPlayerPosition();
 			if ( C and C >= 0 ) then
 				minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
+				if ( minimapRotationEnabled ) then
+					minimapRotationOffset = -MinimapCompassRing:GetFacing()
+				end
 				
 				-- check current frame rate
 				local numPerCycle = GetFramerate() * (self.MinimapUpdateMultiplier or 1) * 2
@@ -826,7 +870,7 @@ function Astrolabe:OnEvent( frame, event )
 		end
 	
 	elseif ( event == "PLAYER_LEAVING_WORLD" ) then
-		frame:Hide();
+		frame:Hide(); -- yes, I know this is redunant
 		self:RemoveAllMinimapIcons(); --dump all minimap icons
 	
 	elseif ( event == "PLAYER_ENTERING_WORLD" ) then
@@ -872,6 +916,11 @@ function Astrolabe:OnShow( frame )
 	
 	-- re-calculate minimap icon positions
 	self:CalculateMinimapIconPositions(true);
+	
+	if ( self.MinimapIconCount <= 0 ) then
+		-- no icons left to manage
+		self.processingFrame:Hide()
+	end
 end
 
 -- called by AstrolabMapMonitor when all world maps are hidden
