@@ -1442,16 +1442,14 @@ WorldMapSize = {
 
 --- WotLK Adjustments
 if ( GetBuildInfo():sub(1, 3) == "3.0" ) then
-	WorldMapSize[1].height = 24533.025279205;
-	WorldMapSize[1].width = 36800.210572494;
+	WorldMapSize[0].height = 31809.64859753034;
+	WorldMapSize[0].width = 47714.27770954026;
+	
 	WorldMapSize[1].xOffset = -8590.409362625034;
 	WorldMapSize[1].yOffset = 5628.694276155668;
 	
-	WorldMapSize[2].height = 27149.795290881;
-	WorldMapSize[2].width = 40741.175327834;
 	WorldMapSize[2].xOffset = 18542.31268111796;
 	WorldMapSize[2].yOffset = 3585.574682467752;
-	
 	WorldMapSize[2].zoneData.Stormwind = {
 		height = 1158.33686894901,
 		width = 1737.498058940429,
