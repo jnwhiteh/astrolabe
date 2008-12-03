@@ -464,7 +464,15 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 	-- system is active.  We call this here so that if this is the first icon being added to 
 	-- an empty buffer, the full recalc will not completely redo the work done by this function 
 	-- because the icon has not yet actually been placed in the buffer.  
-	self.processingFrame:Show()
+	-- 
+	-- Note: if the update system was inactive, then the LastPlayerPosition used to calculate the icon's
+	-- data earlier in this function was out of date, and will be updated by this show, thus we need to redo
+	-- the distance calculations
+	if not ( self.processingFrame:IsShown() ) then
+		self.processingFrame:Show()
+		lC, lZ, lx, ly = unpack(self.LastPlayerPosition);
+		dist, xDist, yDist = self:ComputeDistance(lC, lZ, lx, ly, continent, zone, xPos, yPos);
+	end
 	
 	AddedOrUpdatedIcons[icon] = iconData
 	iconData.continent = continent;
