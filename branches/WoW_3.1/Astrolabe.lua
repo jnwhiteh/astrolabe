@@ -97,8 +97,8 @@ local MinimapIconsMetatable = { __index = AddedOrUpdatedIcons }
 
 local twoPi = math.pi * 2;
 local atan2 = math.atan2;
-local sin = sin;
-local cos = cos;
+local sin = math.sin;
+local cos = math.cos;
 local abs = math.abs;
 local sqrt = math.sqrt;
 local min = math.min
