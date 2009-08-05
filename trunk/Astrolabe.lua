@@ -1515,6 +1515,12 @@ WorldMapSize = {
 				xOffset = 10327.56786162186,
 				yOffset = 5076.728707808831,
 			},
+			HrothgarsLanding = {
+				height = 2452.093653509858,
+				width = 3677.082560623348,
+				xOffset = 6419.234857391856,
+				yOffset = -187.8757232657943,
+			},
 			HowlingFjord = {
 				height = 4031.265457002443,
 				width = 6045.831836878359,
