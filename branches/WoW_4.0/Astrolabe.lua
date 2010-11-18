@@ -139,7 +139,7 @@ local function argcheck(value, num, ...)
 	error(string.format("Bad argument #%d to 'Astrolabe.%s' (%s expected, got %s)", num, name, types, type(value)), 3)
 end
 
-local function getContPosition( mapData, f, x, y )
+local function getSystemPosition( mapData, f, x, y )
 	if ( f ~= 0 ) then
 		mapData = mapData[f];
 	end
@@ -156,12 +156,12 @@ end
 function Astrolabe:ComputeDistance( m1, f1, x1, y1, m2, f2, x2, y2 )
 	--[[
 	argcheck(m1, 2, "number");
-	assert(3, c1 >= 0, "ComputeDistance: Illegal map id to m1: "..m1);
+	assert(3, m1 >= 0, "ComputeDistance: Illegal map id to m1: "..m1);
 	argcheck(f1, 3, "number", "nil");
 	argcheck(x1, 4, "number");
 	argcheck(y1, 5, "number");
 	argcheck(m2, 6, "number");
-	assert(3, c2 >= 0, "ComputeDistance: Illegal map id to m2: "..m2);
+	assert(3, m2 >= 0, "ComputeDistance: Illegal map id to m2: "..m2);
 	argcheck(f2, 7, "number", "nil");
 	argcheck(x2, 8, "number");
 	argcheck(y2, 9, "number");
@@ -183,32 +183,30 @@ function Astrolabe:ComputeDistance( m1, f1, x1, y1, m2, f2, x2, y2 )
 	else
 		local map1 = WorldMapSize[m1];
 		local map2 = WorldMapSize[m2];
-		if ( map1 == zeroData or map2 == zeroData ) then
-			-- do nothing
-		
-		elseif ( map1.system == map2.system ) then
-			-- points on the same continent
-			x1, y1 = getContPosition(map1, f1, x1, y1);
-			x2, y2 = getContPosition(map2, f2, x2, y2);
+		if ( map1.system == map2.system ) then
+			-- points within the same system (continent)
+			x1, y1 = getSystemPosition(map1, f1, x1, y1);
+			x2, y2 = getSystemPosition(map2, f2, x2, y2);
 			xDelta = (x2 - x1);
 			yDelta = (y2 - y1);
 		
 		else
-			local c1 = map1.system;
-			local c2 = map2.system;
-			local cont1 = WorldMapSize[c1];
-			local cont2 = WorldMapSize[c2];
-			if ( cont1.parent == cont2.parent ) then
-				local worldID = cont1.parent;
-				x1, y1 = getContPosition(map1, f1, x1, y1);
-				x2, y2 = getContPosition(map2, f2, x2, y2);
-				if not ( c1 == cont1.parent ) then
-					cont1 = WorldMapSize[worldID][c1];
+			local sp1 = map1.systemParent;
+			local sp2 = map2.systemParent;
+			if ( sp1 == sp2 ) then
+				--local worldID = sp1;
+				-- instead of a new local, reuse sp1
+				local s1 = map1.system;
+				local s2 = map2.system;
+				x1, y1 = getSystemPosition(map1, f1, x1, y1);
+				x2, y2 = getSystemPosition(map2, f2, x2, y2);
+				if not ( s1 == map1.systemParent ) then
+					local cont1 = WorldMapSize[sp1][s1];
 					x1 = x1 - cont1.xOffset;
 					y1 = y1 - cont1.yOffset;
 				end
-				if not ( c2 == cont2.parent ) then
-					cont2 = WorldMapSize[worldID][c2];
+				if not ( s2 == map2.systemParent ) then
+					local cont2 = WorldMapSize[sp1][s2];
 					x2 = x2 - cont2.xOffset;
 					y2 = y2 - cont2.yOffset;
 				end
@@ -249,13 +247,9 @@ function Astrolabe:TranslateWorldMapPosition( M, F, xPos, yPos, nM, nF )
 	else
 		local map = WorldMapSize[M];
 		local nMap = WorldMapSize[nM];
-		if ( map == zeroData or nMap == zeroData ) then
-			return;
-		
-		elseif ( M == nM or (map.system == nMap.system) ) then
-			-- points on the same continent
-			mapData = WorldMapSize[M];
-			xPos, yPos = getContPosition(mapData, F, xPos, yPos);
+		if ( map.system == nMap.system ) then
+			-- points within the same system (continent)
+			xPos, yPos = getSystemPosition(map, F, xPos, yPos);
 			mapData = WorldMapSize[nM];
 			if ( nF ~= 0 ) then
 				mapData = mapData[nF];
@@ -265,24 +259,25 @@ function Astrolabe:TranslateWorldMapPosition( M, F, xPos, yPos, nM, nF )
 		
 		else
 			-- different continents, same world
-			local C = map.system;
-			local nC = nMap.system;
-			local cont = WorldMapSize[C];
-			local nCont = WorldMapSize[nC];
-			if ( cont.parent == nCont.parent ) then
-				local worldID = nCont.parent;
+			local SP = map.systemParent;
+			local nSP = nMap.systemParent;
+			if ( SP == nSP ) then
+				--local worldID = SP;
+				-- instead of a new local, reuse SP
+				local S = map.system;
+				local nS = nMap.system;
 				mapData = WorldMapSize[M];
-				xPos, yPos = getContPosition(mapData, F, xPos, yPos);
-				if ( M ~= worldID ) then
+				xPos, yPos = getSystemPosition(mapData, F, xPos, yPos);
+				if ( M ~= SP ) then
 					-- translate up to world map if we aren't there already
-					cont = WorldMapSize[worldID][C];
+					local cont = WorldMapSize[SP][S];
 					xPos = xPos - cont.xOffset;
 					yPos = yPos - cont.yOffset;
-					mapData = WorldMapSize[worldID];
+					mapData = WorldMapSize[SP];
 				end
-				if ( nM ~= worldID ) then
+				if ( nM ~= SP ) then
 					-- translate down to the new continent
-					nCont = WorldMapSize[worldID][nC];
+					local nCont = WorldMapSize[SP][nS];
 					xPos = xPos + nCont.xOffset;
 					yPos = yPos + nCont.yOffset;
 					mapData = WorldMapSize[nM];
@@ -990,12 +985,11 @@ end
 local function harvestMapData( HarvestedMapData )
 	local mapData = {}
 	local mapName = GetMapInfo();
-	local C, Z = GetCurrentMapContinent(), GetCurrentMapZone();
 	local mapID = GetCurrentMapAreaID();
 	local numFloors = GetNumDungeonMapLevels();
 	mapData.mapName = mapName;
-	mapData.cont = C;
-	mapData.zone = Z;
+	mapData.cont = (GetCurrentMapContinent()) or -100;
+	mapData.zone = (GetCurrentMapZone()) or -100;
 	mapData.numFloors = numFloors;
 	local _, TLx, TLy, BRx, BRy = GetCurrentMapZone();
 	if ( TLx and TLy and BRx and BRy ) then
@@ -1167,395 +1161,154 @@ ValidMinimapShapes = {
 -- in game yards
 WorldMapSize = {
 	[0] = {
-		height = 31809.52239642751,
-		parent = 0,
+		height = 31809.52239642753,
 		system = 0,
-		width = 47714.28684972192,
+		systemParent = 0,
+		width = 47714.28684972235,
+		xOffset = 0,
+		yOffset = 0,
 		[13] = {
-			xOffset = -8476.1894007627,
-			yOffset = -18428.57031019741,
+			xOffset = -8476.189400763025,
+			yOffset = -18428.57031019738,
 		},
 		[14] = {
-			xOffset = -36714.28737618004,
-			yOffset = -14761.90436382772,
+			xOffset = -36714.28737617986,
+			yOffset = -14761.90436382775,
 		},
 		[485] = {
 			xOffset = -25238.09554293004,
-			yOffset = -11047.61835324072,
+			yOffset = -11047.61835324073,
 		},
 	},
-	[4] = {
-		parent = 13,
-	},
-	[9] = {
-		parent = 13,
-	},
-	[11] = {
-		parent = 13,
-	},
 	[13] = {
-		height = 24533.19943776332,
-		parent = 0,
-		system = 13,
-		width = 36799.81248703782,
-		xOffset = -17066.60153393492,
-		yOffset = -12799.89960652374,
+		height = 24533.19943776328,
+		systemParent = 0,
+		width = 36799.812487039,
+		xOffset = -17066.60153393552,
+		yOffset = -12799.89960652372,
 	},
 	[14] = {
-		height = 27149.68748093322,
-		parent = 0,
-		system = 14,
-		width = 40741.17907455011,
-		xOffset = -18171.96844285111,
-		yOffset = -11176.34366519442,
-	},
-	[16] = {
-		parent = 14,
-	},
-	[17] = {
-		parent = 14,
-	},
-	[19] = {
-		parent = 14,
-	},
-	[20] = {
-		parent = 14,
-	},
-	[21] = {
-		parent = 14,
-	},
-	[22] = {
-		parent = 14,
-	},
-	[23] = {
-		parent = 14,
-	},
-	[24] = {
-		parent = 14,
-	},
-	[26] = {
-		parent = 14,
-	},
-	[27] = {
-		parent = 14,
-	},
-	[28] = {
-		parent = 14,
-	},
-	[29] = {
-		parent = 14,
-	},
-	[30] = {
-		parent = 14,
-	},
-	[32] = {
-		parent = 14,
-	},
-	[34] = {
-		parent = 14,
-	},
-	[35] = {
-		parent = 14,
-	},
-	[36] = {
-		parent = 14,
-	},
-	[37] = {
-		parent = 14,
-	},
-	[38] = {
-		parent = 14,
-	},
-	[39] = {
-		parent = 14,
-	},
-	[40] = {
-		parent = 14,
-	},
-	[41] = {
-		parent = 13,
-	},
-	[42] = {
-		parent = 13,
-	},
-	[43] = {
-		parent = 13,
-	},
-	[61] = {
-		parent = 13,
-	},
-	[81] = {
-		parent = 13,
-	},
-	[101] = {
-		parent = 13,
-	},
-	[121] = {
-		parent = 13,
-	},
-	[141] = {
-		parent = 13,
-	},
-	[161] = {
-		parent = 13,
-	},
-	[181] = {
-		parent = 13,
-	},
-	[182] = {
-		parent = 13,
-	},
-	[201] = {
-		parent = 13,
-	},
-	[241] = {
-		parent = 13,
-	},
-	[261] = {
-		parent = 13,
-	},
-	[281] = {
-		parent = 13,
-	},
-	[301] = {
-		parent = 14,
+		height = 27149.68748093324,
+		systemParent = 0,
+		width = 40741.17907455003,
+		xOffset = -18171.96844285107,
+		yOffset = -11176.34366519444,
 	},
 	[321] = {
-		[1] = {
+		{ -- [1]
 			height = 1159.58349609375,
 			width = 1739.375,
 			xOffset = 3506.35400390625,
 			yOffset = -2486.666748046875,
 		},
-		[2] = {
-			height = 241.3902501271251,
-			width = 362.0896285198292,
-			xOffset = 4163.967214776516,
-			yOffset = -1932.2718269577,
+		{ -- [2]
+			height = 241.3902501270561,
+			width = 362.0896285194735,
+			xOffset = 4163.967214772336,
+			yOffset = -1932.271826957179,
 		},
-		parent = 13,
-		xOffset = 8690.027273370266,
-		yOffset = -3623.151831840512,
-	},
-	[341] = {
-		parent = 14,
-	},
-	[362] = {
-		parent = 13,
-	},
-	[381] = {
-		parent = 13,
-	},
-	[382] = {
-		parent = 14,
+		xOffset = 8690.027273366086,
+		yOffset = -3623.151831839991,
 	},
 	[462] = {
-		height = 3283.332957514876,
-		parent = 14,
-		width = 4924.999347356147,
-		xOffset = 2087.500228882575,
-		yOffset = -8641.665775769438,
+		height = 3283.33295751491,
+		width = 4924.999347356189,
+		xOffset = 2087.500228882545,
+		yOffset = -8641.665775769476,
 	},
 	[463] = {
 		height = 2200.000100524817,
-		parent = 14,
-		width = 3300.000849582923,
-		xOffset = 2883.332724962417,
-		yOffset = -5866.66614274571,
+		width = 3300.000849582906,
+		xOffset = 2883.332724962418,
+		yOffset = -5866.666142745725,
 	},
 	[464] = {
-		height = 2714.581332796625,
-		parent = 13,
-		width = 4070.830338460461,
-		xOffset = -7099.99863117853,
-		yOffset = -7339.582330574734,
-	},
-	[465] = {
-		parent = 466,
+		height = 2714.581332796636,
+		width = 4070.830338460595,
+		xOffset = -7099.998631178809,
+		yOffset = -7339.582330574732,
 	},
 	[466] = {
 		height = 11642.7184306688,
-		parent = 466,
-		system = 466,
+		systemParent = 466,
 		width = 17464.0778976456,
 		xOffset = -12996.039023266,
 		yOffset = -5821.359136647918,
 	},
-	[467] = {
-		parent = 466,
-	},
 	[471] = {
-		height = 704.6879439334424,
-		parent = 13,
-		width = 1056.769917572753,
-		xOffset = -6533.632539833583,
-		yOffset = -6523.649952411448,
-	},
-	[473] = {
-		parent = 466,
-	},
-	[475] = {
-		parent = 466,
+		height = 704.6879439334292,
+		width = 1056.769917572813,
+		xOffset = -6533.632539833854,
+		yOffset = -6523.649952411429,
 	},
 	[476] = {
-		height = 2174.99908042674,
-		parent = 13,
-		width = 3262.500356655771,
-		xOffset = -7525.000166381135,
-		yOffset = -9374.999432854662,
-	},
-	[477] = {
-		parent = 466,
-	},
-	[478] = {
-		parent = 466,
-	},
-	[479] = {
-		parent = 466,
+		height = 2174.999080426712,
+		width = 3262.50035665586,
+		xOffset = -7525.000166381416,
+		yOffset = -9374.999432854631,
 	},
 	[480] = {
-		height = 806.7718973194787,
-		parent = 14,
-		width = 1211.45871108373,
-		xOffset = 4000.749319189492,
-		yOffset = -7753.709392183317,
-	},
-	[481] = {
-		parent = 466,
+		height = 806.7718973195065,
+		width = 1211.458711083736,
+		xOffset = 4000.74931918948,
+		yOffset = -7753.709392183351,
 	},
 	[485] = {
-		height = 11834.2651530051,
-		parent = 0,
-		system = 485,
+		height = 11834.26515300512,
+		systemParent = 0,
 		width = 17751.39838591091,
 		xOffset = -9217.152309900695,
-		yOffset = -10593.37486945282,
-	},
-	[486] = {
-		parent = 485,
-	},
-	[488] = {
-		parent = 485,
-	},
-	[490] = {
-		parent = 485,
-	},
-	[491] = {
-		parent = 485,
-	},
-	[492] = {
-		parent = 485,
-	},
-	[493] = {
-		parent = 485,
-	},
-	[495] = {
-		parent = 485,
-	},
-	[496] = {
-		parent = 485,
+		yOffset = -10593.37486945283,
 	},
 	[499] = {
 		height = 2218.750266591503,
-		parent = 14,
-		width = 3327.083620018369,
-		xOffset = 2902.082335154929,
-		yOffset = -11168.74964634414,
-	},
-	[501] = {
-		parent = 485,
+		width = 3327.083620018341,
+		xOffset = 2902.082335154937,
+		yOffset = -11168.74964634416,
 	},
 	[504] = {
-		[1] = {
+		{ -- [1]
 			height = 553.3399540907861,
 			width = 830.0164284077179,
 			xOffset = -1052.511094552897,
-			yOffset = -6066.67114818645,
+			yOffset = -6066.671148186453,
 		},
-		[2] = {
-			height = 375.4892662605064,
+		{ -- [2]
+			height = 375.4892662608496,
 			width = 563.2227893164886,
 			xOffset = -915.86865482248,
-			yOffset = -5975.332586681272,
+			yOffset = -5975.332586686567,
 		},
-		parent = 485,
 		xOffset = -1270.795998074708,
-		yOffset = -11581.5767723675,
-	},
-	[510] = {
-		parent = 485,
-	},
-	[541] = {
-		parent = 485,
+		yOffset = -11581.57677236751,
 	},
 	[544] = {
-		parent = 544,
+		system = 544,
 	},
 	[605] = {
-		parent = 605,
-	},
-	[606] = {
-		parent = 13,
-	},
-	[607] = {
-		parent = 13,
-	},
-	[610] = {
-		parent = 14,
-	},
-	[613] = {
-		parent = 14,
-	},
-	[614] = {
-		parent = 14,
-	},
-	[615] = {
-		parent = 14,
+		system = 605,
 	},
 	[640] = {
-		parent = 640,
-	},
-	[673] = {
-		parent = 14,
-	},
-	[684] = {
-		parent = 14,
-	},
-	[685] = {
-		parent = 14,
-	},
-	[689] = {
-		parent = 14,
-	},
-	[700] = {
-		parent = 14,
+		system = 640,
 	},
 	[708] = {
-		height = 1343.750015102286,
-		parent = 14,
-		width = 2014.581529778917,
-		xOffset = -4810.415836184278,
-		yOffset = 2160.41647470917,
+		height = 1343.750015102283,
+		width = 2014.581529778928,
+		xOffset = -4810.415836184275,
+		yOffset = 2160.416474709164,
 	},
 	[709] = {
-		height = 1224.999536483739,
-		parent = 14,
+		height = 1224.999536483728,
 		width = 1837.49974069494,
-		xOffset = -5212.499704174925,
-		yOffset = 1222.91665807089,
-	},
-	[720] = {
-		parent = 13,
+		xOffset = -5212.499704174918,
+		yOffset = 1222.916658070889,
 	},
 	[737] = {
-		parent = 737,
-	},
-	[772] = {
-		parent = 13,
+		system = 737,
 	},
 }
 
-zeroData = { xOffset = 0, height = 0, yOffset = 0, width = 0, __index = function() return zeroData end };
+zeroData = { xOffset = 0, height = 0, yOffset = 0, width = 0, __index = function(tbl, key) return zeroData end };
 setmetatable(zeroData, zeroData);
 
 function printError( ... )
@@ -1567,10 +1320,6 @@ end
 for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 	local mapData = WorldMapSize[mapID];
 	if ( mapData ) then
-		if not ( mapData.system ) then
-			mapData.system = mapData.parent;
-		end
-		setmetatable(mapData, zeroData);
 		if ( harvestedData.numFloors > 0 ) then
 			for f, harvData in pairs(harvestedData) do
 				if ( type(f) == "number" and f > 0 ) then
@@ -1594,7 +1343,7 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 			end
 			for f = 1, harvestedData.numFloors do
 				if not ( mapData[f] ) then
-					mapData[f] = zeroData;
+					printError(("Astrolabe is missing data for %s [%d], floor %d."):format(harvestedData.mapName, mapID, f));
 				end
 			end
 			-- TODO: handle floored world maps
@@ -1620,15 +1369,9 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 		if ( harvestedData.cont > 0 ) then
 			printError(("Astrolabe is missing data for world map %s [%d] (%d, %d)."):format(harvestedData.mapName, mapID, harvestedData.cont, harvestedData.zone));
 		end
-		local mapData = {};
+		mapData = {};
 		WorldMapSize[mapID] = mapData;
-		setmetatable(mapData, zeroData);
 		
-		mapData.parent = mapID;
-		if ( harvestedData.cont > 0 and harvestedData.zone > 0 ) then
-			mapData.parent = Astrolabe:GetMapID(harvestedData.cont, nil);
-		end
-		mapData.system = mapData.parent;
 		if ( harvestedData.numFloors > 0 ) then
 			for f, harvData in pairs(harvestedData) do
 				if ( type(f) == "number" and f > 0 ) then
@@ -1642,7 +1385,6 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 			end
 			for f = 1, harvestedData.numFloors do
 				if not ( mapData[f] ) then
-					mapData[f] = zeroData;
 					printError(("Astrolabe is missing data for %s [%d], floor %d."):format(harvestedData.mapName, mapID, f));
 				end
 			end
@@ -1656,13 +1398,34 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 				mapData.yOffset = harvData.TLy
 			
 			else
-				WorldMapSize[mapID] = zeroData;
 				printError(("Astrolabe is missing data for %s [%d]."):format(harvestedData.mapName, mapID));
 			
 			end
 		
 		end
+		if not ( next(mapData, nil) ) then
+			mapData = nil;
+			WorldMapSize[mapID] = nil;
+		end
 	
+	end
+	if ( mapData and mapData ~= zeroData ) then
+		if not ( mapData.system ) then
+			mapData.system = mapID;
+			
+			if ( harvestedData.cont > 0 and harvestedData.zone > 0 ) then
+				mapData.system = Astrolabe:GetMapID(harvestedData.cont, nil);
+			end
+		end
+		if not ( mapData.systemParent ) then
+			mapData.systemParent = mapID;
+			
+			local systemData = WorldMapSize[mapData.system];
+			if ( systemData and systemData.systemParent ) then
+				mapData.systemParent = systemData.systemParent;
+			end
+		end
+		setmetatable(mapData, zeroData);
 	end
 end
 
