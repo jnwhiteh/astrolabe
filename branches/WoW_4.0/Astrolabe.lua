@@ -999,8 +999,8 @@ local function harvestMapData( HarvestedMapData )
 			BRx = -BRx;
 		end
 		if not ( TLy < BRy) then
-			TLx = -TLx;
-			BRx = -BRx;
+			TLy = -TLy;
+			BRy = -BRy;
 		end
 		mapData[0].TLx = TLx;
 		mapData[0].TLy = TLy;
@@ -1018,8 +1018,8 @@ local function harvestMapData( HarvestedMapData )
 					BRx = -BRx;
 				end
 				if not ( TLy < BRy) then
-					TLx = -TLx;
-					BRx = -BRx;
+					TLy = -TLy;
+					BRy = -BRy;
 				end
 				mapData[f].TLx = TLx;
 				mapData[f].TLy = TLy;
