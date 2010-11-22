@@ -358,11 +358,12 @@ end
 function Astrolabe:GetMapInfo( mapID, mapFloor )
 	mapFloor = mapFloor or 0
 	local mapData = WorldMapSize[mapID]
+	local system, systemParent = mapData.system, mapData.systemParent
 	if ( mapFloor ~= 0 ) then
-		mapData = mapData[f];
+		mapData = mapData[mapFloor];
 	end
 	if ( mapData ~= zeroData ) then
-		return mapData.system, mapData.systemParent, mapData.width, mapData.height, mapData.xOffset, mapData.yOffset
+		return system, systemParent, mapData.width, mapData.height, mapData.xOffset, mapData.yOffset
 	end
 end
 
