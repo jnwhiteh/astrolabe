@@ -1173,38 +1173,38 @@ ValidMinimapShapes = {
 -- in game yards
 WorldMapSize = {
 	[0] = {
-		height = 31809.52239642753,
+		height = 31809.52238891934,
 		system = 0,
 		systemParent = 0,
-		width = 47714.28684972235,
+		width = 47714.28663010775,
 		xOffset = 0,
 		yOffset = 0,
 		[13] = {
-			xOffset = -8476.189400763025,
-			yOffset = -18428.57031019738,
+			xOffset = -8476.189257198465,
+			yOffset = -18428.57029767178,
 		},
 		[14] = {
-			xOffset = -36714.28737617986,
-			yOffset = -14761.90436382775,
+			xOffset = -36714.28737618068,
+			yOffset = -14761.90436382773,
 		},
 		[485] = {
-			xOffset = -25238.09554293004,
+			xOffset = -25238.09554293005,
 			yOffset = -11047.61835324073,
 		},
 	},
 	[13] = {
-		height = 24533.19943776328,
+		height = 24533.19944823761,
 		systemParent = 0,
-		width = 36799.812487039,
-		xOffset = -17066.60153393552,
-		yOffset = -12799.89960652372,
+		width = 36799.81196672546,
+		xOffset = -17066.60125772011,
+		yOffset = -12799.89960924772,
 	},
 	[14] = {
-		height = 27149.68748093324,
+		height = 27149.68748093322,
 		systemParent = 0,
-		width = 40741.17907455003,
-		xOffset = -18171.96844285107,
-		yOffset = -11176.34366519444,
+		width = 40741.17907455098,
+		xOffset = -18171.96844285151,
+		yOffset = -11176.34366519442,
 	},
 	[321] = {
 		{ -- [1]
@@ -1214,31 +1214,31 @@ WorldMapSize = {
 			yOffset = -2486.666748046875,
 		},
 		{ -- [2]
-			height = 241.3902501270561,
-			width = 362.0896285194735,
-			xOffset = 4163.967214772336,
-			yOffset = -1932.271826957179,
+			height = 241.3902502301521,
+			width = 362.0896233994427,
+			xOffset = 4163.967126808848,
+			yOffset = -1932.271825763479,
 		},
-		xOffset = 8690.027273366086,
-		yOffset = -3623.151831839991,
+		xOffset = 8690.027185402598,
+		yOffset = -3623.151830646291,
 	},
 	[462] = {
-		height = 3283.33295751491,
-		width = 4924.999347356189,
-		xOffset = 2087.500228882545,
-		yOffset = -8641.665775769476,
+		height = 3283.332957514885,
+		width = 4924.999347356314,
+		xOffset = 2087.500228882578,
+		yOffset = -8641.665775769445,
 	},
 	[463] = {
-		height = 2200.000100524817,
-		width = 3300.000849582906,
-		xOffset = 2883.332724962418,
-		yOffset = -5866.666142745725,
+		height = 2200.00010052483,
+		width = 3300.000849582993,
+		xOffset = 2883.332724962468,
+		yOffset = -5866.666142745718,
 	},
 	[464] = {
-		height = 2714.581332796636,
-		width = 4070.830338460595,
-		xOffset = -7099.998631178809,
-		yOffset = -7339.582330574732,
+		height = 2714.581333955625,
+		width = 4070.830280903009,
+		xOffset = -7099.998495881463,
+		yOffset = -7339.582330967481,
 	},
 	[466] = {
 		height = 11642.7184306688,
@@ -1248,79 +1248,129 @@ WorldMapSize = {
 		yOffset = -5821.359136647918,
 	},
 	[471] = {
-		height = 704.6879439334292,
-		width = 1056.769917572813,
-		xOffset = -6533.632539833854,
-		yOffset = -6523.649952411429,
+		height = 704.6879442342946,
+		width = 1056.769902631041,
+		xOffset = -6533.632412544334,
+		yOffset = -6523.649952455817,
 	},
 	[476] = {
-		height = 2174.999080426712,
-		width = 3262.50035665586,
-		xOffset = -7525.000166381416,
-		yOffset = -9374.999432854631,
+		height = 2174.999081355295,
+		width = 3262.500310527256,
+		xOffset = -7525.000025074952,
+		yOffset = -9374.999434116371,
 	},
 	[480] = {
-		height = 806.7718973195065,
-		width = 1211.458711083736,
-		xOffset = 4000.74931918948,
-		yOffset = -7753.709392183351,
+		height = 806.7718973194787,
+		width = 1211.458711083753,
+		xOffset = 4000.749319189569,
+		yOffset = -7753.709392183318,
 	},
 	[485] = {
-		height = 11834.26515300512,
+		height = 11834.2651530051,
 		systemParent = 0,
-		width = 17751.39838591091,
-		xOffset = -9217.152309900695,
-		yOffset = -10593.37486945283,
+		width = 17751.39838591092,
+		xOffset = -9217.152309900701,
+		yOffset = -10593.37486945282,
 	},
 	[499] = {
-		height = 2218.750266591503,
-		width = 3327.083620018341,
-		xOffset = 2902.082335154937,
+		height = 2218.75026659154,
+		width = 3327.083620018485,
+		xOffset = 2902.082335154956,
 		yOffset = -11168.74964634416,
 	},
 	[504] = {
 		{ -- [1]
-			height = 553.3399540907861,
+			height = 553.3399540905241,
 			width = 830.0164284077179,
-			xOffset = -1052.511094552897,
-			yOffset = -6066.671148186453,
+			xOffset = -1052.511094552898,
+			yOffset = -6066.671148183714,
 		},
 		{ -- [2]
-			height = 375.4892662608496,
+			height = 375.4892662605064,
 			width = 563.2227893164886,
-			xOffset = -915.86865482248,
-			yOffset = -5975.332586686567,
+			xOffset = -915.8686548224803,
+			yOffset = -5975.332586681274,
 		},
-		xOffset = -1270.795998074708,
-		yOffset = -11581.57677236751,
+		xOffset = -1270.79599807471,
+		yOffset = -11581.57677236475,
 	},
 	[544] = {
 		system = 544,
 	},
+	[545] = {
+		height = 2097.916687011719,
+		width = 3145.833251953125,
+		xOffset = 0,
+		yOffset = 0,
+	},
 	[605] = {
 		system = 605,
+	},
+	[611] = {
+		height = 593.7498779296875,
+		width = 889.583251953125,
+		xOffset = 0,
+		yOffset = 0,
 	},
 	[640] = {
 		system = 640,
 	},
+	[677] = {
+		height = 593.7498779296875,
+		width = 889.583251953125,
+		xOffset = 0,
+		yOffset = 0,
+	},
+	[678] = {
+		height = 2097.916687011719,
+		width = 3145.833251953125,
+		xOffset = 0,
+		yOffset = 0,
+	},
+	[679] = {
+		height = 2097.916687011719,
+		width = 3145.833251953125,
+		xOffset = 0,
+		yOffset = 0,
+	},
+	[681] = {
+		height = 3010.416656494141,
+		width = 4514.5830078125,
+		xOffset = 0,
+		yOffset = 0,
+	},
+	[682] = {
+		height = 3010.416656494141,
+		width = 4514.5830078125,
+		xOffset = 0,
+		yOffset = 0,
+	},
 	[708] = {
-		height = 1343.750015102283,
-		width = 2014.581529778928,
-		xOffset = -4810.415836184275,
-		yOffset = 2160.416474709164,
+		height = 1343.750015102278,
+		width = 2014.581529778949,
+		xOffset = -4810.415836184387,
+		yOffset = 2160.416474709172,
 	},
 	[709] = {
-		height = 1224.999536483728,
-		width = 1837.49974069494,
-		xOffset = -5212.499704174918,
-		yOffset = 1222.916658070889,
+		height = 1224.999536483745,
+		width = 1837.499740694988,
+		xOffset = -5212.499704175054,
+		yOffset = 1222.916658070884,
 	},
 	[737] = {
 		system = 737,
 	},
 }
 
-zeroData = { xOffset = 0, height = 0, yOffset = 0, width = 0, __index = function(tbl, key) return zeroData end };
+local function zeroDataFunc(tbl, key)
+	if ( type(key) == "number" ) then
+		return zeroData;
+	else
+		return 0;
+	end
+end
+
+zeroData = { xOffset = 0, height = 0, yOffset = 0, width = 0, __index = zeroDataFunc };
 setmetatable(zeroData, zeroData);
 
 function printError( ... )
@@ -1378,11 +1428,7 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 		end
 	
 	else
-		if ( harvestedData.cont > 0 ) then
-			printError(("Astrolabe is missing data for world map %s [%d] (%d, %d)."):format(harvestedData.mapName, mapID, harvestedData.cont, harvestedData.zone));
-		end
 		mapData = {};
-		WorldMapSize[mapID] = mapData;
 		
 		if ( harvestedData.numFloors > 0 ) then
 			for f, harvData in pairs(harvestedData) do
@@ -1415,12 +1461,25 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 			end
 		
 		end
+		
+		-- if we don't have any data, we're gonna use zeroData, but we also need to 
+		-- setup the system and systemParent IDs so things don't get confused
 		if not ( next(mapData, nil) ) then
-			mapData = nil;
-			WorldMapSize[mapID] = nil;
+			mapData = { xOffset = 0, height = 0, yOffset = 0, width = 0 };
+			setmetatable(mapData, zeroData);
+			
+			-- if this is a regluar outside zone map and 
+			if ( harvestedData.cont > 0 and harvestedData.zone == 0 ) then
+				printError(("Astrolabe is missing data for world map %s [%d] (%d, %d)."):format(harvestedData.mapName, mapID, harvestedData.cont, harvestedData.zone));
+			end
 		end
+		
+		-- store the data in the WorldMapSize DB
+		WorldMapSize[mapID] = mapData;
 	
 	end
+	
+	-- setup system and systemParent IDs
 	if ( mapData and mapData ~= zeroData ) then
 		if not ( mapData.system ) then
 			mapData.system = mapID;
