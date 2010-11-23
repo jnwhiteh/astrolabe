@@ -1180,7 +1180,7 @@ WorldMapSize = {
 		xOffset = 0,
 		yOffset = 0,
 		[13] = {
-			xOffset = -8476.18925,
+			xOffset = -8476.18926,
 			yOffset = -18428.5703,
 		},
 		[14] = {
@@ -1221,6 +1221,24 @@ WorldMapSize = {
 		},
 		xOffset = 8690.02719,
 		yOffset = -3623.15183,
+	},
+	[401] = {
+		height = 2825.00046,
+		width = 4237.49828,
+		xOffset = 0,
+		yOffset = 0,
+	},
+	[443] = {
+		height = 764.58325,
+		width = 1145.83472,
+		xOffset = 0,
+		yOffset = 0,
+	},
+	[461] = {
+		height = 1170.83309,
+		width = 1756.25023,
+		xOffset = 0,
+		yOffset = 0,
 	},
 	[462] = {
 		height = 3283.33296,
@@ -1265,6 +1283,12 @@ WorldMapSize = {
 		xOffset = 4000.74932,
 		yOffset = -7753.70939,
 	},
+	[482] = {
+		height = 1514.58311,
+		width = 2270.83529,
+		xOffset = 0,
+		yOffset = 0,
+	},
 	[485] = {
 		height = 11834.26515,
 		systemParent = 0,
@@ -1300,6 +1324,24 @@ WorldMapSize = {
 		xOffset = -1270.796,
 		yOffset = -11581.57677,
 	},
+	[512] = {
+		height = 1162.50002,
+		width = 1743.74946,
+		xOffset = 0,
+		yOffset = 0,
+	},
+	[531] = {
+		height = 774.99991,
+		width = 1162.49961,
+		xOffset = 0,
+		yOffset = 0,
+	},
+	[540] = {
+		height = 1766.66716,
+		width = 2650.00164,
+		xOffset = 0,
+		yOffset = 0,
+	},
 	[544] = {
 		system = 544,
 	},
@@ -1309,8 +1351,20 @@ WorldMapSize = {
 		xOffset = 0,
 		yOffset = 0,
 	},
+	[602] = {
+		height = 1022.91668,
+		width = 1533.33347,
+		xOffset = 0,
+		yOffset = 0,
+	},
 	[605] = {
 		system = 605,
+	},
+	[609] = {
+		height = 502.08329,
+		width = 752.08331,
+		xOffset = 0,
+		yOffset = 0,
 	},
 	[611] = {
 		height = 593.74988,
@@ -1351,6 +1405,12 @@ WorldMapSize = {
 		xOffset = 0,
 		yOffset = 0,
 	},
+	[686] = {
+		height = 922.9166,
+		width = 1383.33334,
+		xOffset = 0,
+		yOffset = 0,
+	},
 	[708] = {
 		height = 1343.75002,
 		width = 2014.58153,
@@ -1362,6 +1422,12 @@ WorldMapSize = {
 		width = 1837.49974,
 		xOffset = -5212.4997,
 		yOffset = 1222.91666,
+	},
+	[717] = {
+		height = 1674.99988,
+		width = 2512.4912,
+		xOffset = 0,
+		yOffset = 0,
 	},
 	[737] = {
 		system = 737,
