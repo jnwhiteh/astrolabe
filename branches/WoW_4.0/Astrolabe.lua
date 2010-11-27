@@ -1538,9 +1538,7 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 		-- setup the system and systemParent IDs so things don't get confused
 		if not ( next(mapData, nil) ) then
 			mapData = { xOffset = 0, height = 0, yOffset = 0, width = 0 };
-			setmetatable(mapData, zeroData);
-			
-			-- if this is a regluar outside zone map and 
+			-- if this is an outside continent level or world map then throw up an extra warning
 			if ( harvestedData.cont > 0 and harvestedData.zone == 0 ) then
 				printError(("Astrolabe is missing data for world map %s [%d] (%d, %d)."):format(harvestedData.mapName, mapID, harvestedData.cont, harvestedData.zone));
 			end
@@ -1568,11 +1566,28 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 				mapData.systemParent = systemData.systemParent;
 			end
 		end
+		
+		-- systemParent sanity checks
+		if ( mapData.system ~= mapData.systemParent ) then
+			if not ( WorldMapSize[mapData.systemParent] and WorldMapSize[mapData.systemParent][mapData.system] ) then
+				printError("Astrolabe detected a child system that the parent doesn't know about.  VERY BAD!!!");
+			end
+		end
+		
 		setmetatable(mapData, zeroData);
 	end
 end
 
-setmetatable(WorldMapSize, zeroData);
+setmetatable(WorldMapSize[0], zeroData); -- special case for World Map
+
+-- make sure we don't have any EXTRA data hanging around
+for mapID, mapData in pairs(WorldMapSize) do
+	if ( getmetatable(mapData) ~= zeroData ) then
+		printError("Astrolabe has hard coded data for an invalid map ID", mapID);
+	end
+end
+
+setmetatable(WorldMapSize, zeroData); -- setup the metatable so that invalid map IDs don't cause Lua errors
 
 -- register this library with AstrolabeMapMonitor, this will cause a full update if PLAYER_LOGIN has already fired
 local AstrolabeMapMonitor = DongleStub("AstrolabeMapMonitor");
