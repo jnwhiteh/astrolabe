@@ -355,6 +355,13 @@ function Astrolabe:GetMapID(continent, zone)
 	end
 end
 
+function Astrolabe:GetNumFloors( mapID )
+	if ( type(mapID) == "number" ) then
+		local mapData = WorldMapSize[mapID]
+		return #mapData
+	end
+end
+
 function Astrolabe:GetMapInfo( mapID, mapFloor )
 	mapFloor = mapFloor or 0
 	local mapData = WorldMapSize[mapID]
