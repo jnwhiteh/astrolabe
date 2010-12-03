@@ -1468,7 +1468,7 @@ end
 zeroData = { xOffset = 0, height = 0, yOffset = 0, width = 0, __index = zeroDataFunc };
 setmetatable(zeroData, zeroData);
 
-function printError( ... )
+local function printError( ... )
 	if ( ASTROLABE_VERBOSE) then
 		print(...)
 	end
