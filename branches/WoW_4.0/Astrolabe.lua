@@ -254,8 +254,6 @@ function Astrolabe:TranslateWorldMapPosition( M, F, xPos, yPos, nM, nF )
 			if ( nF ~= 0 ) then
 				mapData = mapData[nF];
 			end
-			xPos = xPos - mapData.xOffset;
-			yPos = yPos - mapData.yOffset;
 		
 		else
 			-- different continents, same world
@@ -291,6 +289,10 @@ function Astrolabe:TranslateWorldMapPosition( M, F, xPos, yPos, nM, nF )
 			end
 		
 		end
+		-- need to account for the offset in the new system so we can
+		-- correctly translate into 0-1 style coordinates
+		xPos = xPos - mapData.xOffset;
+		yPos = yPos - mapData.yOffset;
 	
 	end
 	
