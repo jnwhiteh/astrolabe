@@ -167,6 +167,7 @@ function Astrolabe:ComputeDistance( m1, f1, x1, y1, m2, f2, x2, y2 )
 	argcheck(y2, 9, "number");
 	--]]
 	
+	if not ( m1 and m2 ) then return end;
 	f1 = f1 or min(#WorldMapSize[m1], 1);
 	f2 = f2 or min(#WorldMapSize[m2], 1);
 	
@@ -234,6 +235,7 @@ function Astrolabe:TranslateWorldMapPosition( M, F, xPos, yPos, nM, nF )
 	argcheck(nF, 7, "number", "nil");
 	--]]
 	
+	if not ( M and nM ) then return end;
 	F = F or min(#WorldMapSize[M], 1);
 	nF = nF or min(#WorldMapSize[nM], 1);
 	if ( nM < 0 ) then
