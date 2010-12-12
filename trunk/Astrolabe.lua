@@ -1403,6 +1403,12 @@ WorldMapSize = {
 		xOffset = 0,
 		yOffset = 0,
 	},
+	[626] = {
+		height = 810.41329,
+		width = 1214.58151,
+		xOffset = 0,
+		yOffset = 0,
+	},
 	[640] = {
 		system = 640,
 	},
@@ -1460,8 +1466,20 @@ WorldMapSize = {
 		xOffset = 0,
 		yOffset = 0,
 	},
+	[736] = {
+		height = 868.74697,
+		width = 1302.08448,
+		xOffset = 0,
+		yOffset = 0,
+	},
 	[737] = {
 		system = 737,
+	},
+	[747] = {
+		height = 647.91734,
+		width = 970.83627,
+		xOffset = 0,
+		yOffset = 0,
 	},
 }
 
