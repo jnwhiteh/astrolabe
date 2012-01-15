@@ -1582,7 +1582,19 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 			end
 			for f = 1, harvestedData.numFloors do
 				if not ( mapData[f] ) then
-					printError(("Astrolabe is missing data for %s [%d], floor %d."):format(harvestedData.mapName, mapID, f));
+					if ( f == 1 and harvestedData.cont < 0 ) then
+						-- handle dungeon maps which use zone level data for the first floor
+						printError(("Astrolabe is using zone data for %s [%d], floor %d."):format(harvestedData.mapName, mapID, f));
+						mapData[f] = {};
+						local floorData = mapData[f]
+						local harvData = harvestedData[0]
+						floorData.width = harvData.BRx - harvData.TLx
+						floorData.height = harvData.BRy - harvData.TLy
+						floorData.xOffset = harvData.TLx
+						floorData.yOffset = harvData.TLy
+					else
+						printError(("Astrolabe is missing data for %s [%d], floor %d."):format(harvestedData.mapName, mapID, f));
+					end
 				end
 			end
 		
