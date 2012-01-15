@@ -13,7 +13,7 @@ Description:
 	This library also manages and updates the position of Minimap icons 
 	automatically.  
 
-Copyright (C) 2006-2010 James Carrothers
+Copyright (C) 2006-2012 James Carrothers
 
 License:
 	This library is free software; you can redistribute it and/or
@@ -321,7 +321,7 @@ function Astrolabe:GetUnitPosition( unit, noMapChange )
 			WorldMapZoomOutButton_OnClick();
 			x, y = GetPlayerMapPosition(unit);
 			if ( x <= 0 and y <= 0 ) then
-				-- we are in an instance or otherwise off map
+				-- we are in an instance without a map or otherwise off map
 				return;
 			end
 		end
@@ -341,11 +341,29 @@ end
 -- for the specified unit, including changing the current map zoom (if needed).  
 -- However, if a monitored WorldMapFrame (See AstrolabeMapMonitor.lua) is 
 -- visible, then will simply return nil if the current zoom does not provide 
--- a valid position for the player unit.  Map Zoom is returned to its previous 
--- setting before this function returns, if it was changed.  
+-- a valid position for the player unit.  Map Zoom is NOT returned to its previous 
+-- setting before this function returns, in order to provide better performance.  
 --*****************************************************************************
 function Astrolabe:GetCurrentPlayerPosition()
-	return self:GetUnitPosition("player", self.WorldMapVisible);
+	local x, y = GetPlayerMapPosition("player");
+	if ( x <= 0 and y <= 0 ) then
+		if ( self.WorldMapVisible ) then
+			-- we know there is a visible world map, so don't cause 
+			-- WORLD_MAP_UPDATE events by changing map zoom
+			return;
+		end
+		SetMapToCurrentZone();
+		x, y = GetPlayerMapPosition("player");
+		if ( x <= 0 and y <= 0 ) then
+			WorldMapZoomOutButton_OnClick();
+			x, y = GetPlayerMapPosition("player");
+			if ( x <= 0 and y <= 0 ) then
+				-- we are in an instance without a map or otherwise off map
+				return;
+			end
+		end
+	end
+	return GetCurrentMapAreaID(), GetCurrentMapDungeonLevel(), x, y;
 end
 
 function Astrolabe:GetMapID(continent, zone)
