@@ -1224,6 +1224,10 @@ WorldMapSize = {
 			xOffset = -25238.09562,
 			yOffset = -11047.61848,
 		},
+		[862] = {
+			xOffset = -27693.71125,
+			yOffset = -29720.05946,
+		},
 	},
 	[13] = {
 		height = 24533.2002,
@@ -1367,6 +1371,9 @@ WorldMapSize = {
 	[737] = {
 		system = 737,
 	},
+	[862] = {
+		systemParent = 0,
+	},
 }
 
 local function zeroDataFunc(tbl, key)
@@ -1377,7 +1384,7 @@ local function zeroDataFunc(tbl, key)
 	end
 end
 
-zeroData = { xOffset = 0, height = 0, yOffset = 0, width = 0, __index = zeroDataFunc };
+zeroData = { xOffset = 0, height = 1, yOffset = 0, width = 1, __index = zeroDataFunc };
 setmetatable(zeroData, zeroData);
 
 local function printError( ... )
@@ -1484,7 +1491,7 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 		-- if we don't have any data, we're gonna use zeroData, but we also need to 
 		-- setup the system and systemParent IDs so things don't get confused
 		if not ( next(mapData, nil) ) then
-			mapData = { xOffset = 0, height = 0, yOffset = 0, width = 0 };
+			mapData = { xOffset = 0, height = 1, yOffset = 0, width = 1 };
 			-- if this is an outside continent level or world map then throw up an extra warning
 			if ( harvestedData.cont > 0 and harvestedData.zone == 0 ) then
 				printError(("Astrolabe is missing data for world map %s [%d] (%d, %d)."):format(harvestedData.mapName, mapID, harvestedData.cont, harvestedData.zone));
