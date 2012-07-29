@@ -1043,20 +1043,12 @@ local function harvestMapData( HarvestedMapData )
 	mapData.zone = (GetCurrentMapZone()) or -100;
 	mapData.numFloors = numFloors;
 	local _, TLx, TLy, BRx, BRy = GetCurrentMapZone();
-	if ( TLx and TLy and BRx and BRy ) then
-		if not ( TLx==0 and TLy==0 and BRx==0 and BRy==0 ) then
-			if not ( TLx < BRx ) then
-			--	printError("Bad x-axis Orientation: ", mapID, TLx, BRx);
-			end
-			if not ( TLy < BRy) then
-			--	printError("Bad y-axis Orientation: ", mapID, TLy, BRy);
-			end
-		end
+	if ( TLx and TLy and BRx and BRy and (TLx~=0 or TLy~=0 or BRx~=0 or BRy~=0) ) then
 		mapData[0] = {};
-		mapData[0].TLx = -TLx;
-		mapData[0].TLy = -TLy;
-		mapData[0].BRx = -BRx;
-		mapData[0].BRy = -BRy;
+		mapData[0].TLx = TLx;
+		mapData[0].TLy = TLy;
+		mapData[0].BRx = BRx;
+		mapData[0].BRy = BRy;
 	end
 	if ( numFloors > 0 ) then
 		for f = 1, numFloors do
@@ -1064,23 +1056,10 @@ local function harvestMapData( HarvestedMapData )
 			local _, TLx, TLy, BRx, BRy = GetCurrentMapDungeonLevel();
 			if ( TLx and TLy and BRx and BRy ) then
 				mapData[f] = {};
-				if not ( TLx < BRx ) then
-					printError("Bad x-axis Orientation: ", mapID, f, TLx, BRx);
-				end
-				if not ( TLy < BRy) then
-					printError("Bad y-axis Orientation: ", mapID, f, TLy, BRy);
-				end
-				if ( mapData[0] ) then
-					mapData[f].TLx = -TLx;
-					mapData[f].TLy = -TLy;
-					mapData[f].BRx = -BRx;
-					mapData[f].BRy = -BRy;
-				else
-					mapData[f].TLx = TLx;
-					mapData[f].TLy = TLy;
-					mapData[f].BRx = BRx;
-					mapData[f].BRy = BRy;
-				end
+				mapData[f].TLx = TLx;
+				mapData[f].TLy = TLy;
+				mapData[f].BRx = BRx;
+				mapData[f].BRy = BRy;
 			end
 		end
 	end
@@ -1352,135 +1331,105 @@ setmetatable(zeroData, zeroData);
 
 for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 	local mapData = WorldMapSize[mapID];
-	if ( mapData ) then
-		if ( harvestedData.numFloors > 0 ) then
-			for f, harvData in pairs(harvestedData) do
-				if ( type(f) == "number" and f > 0 ) then
-					if not ( mapData[f] ) then
-						mapData[f] = {};
-					end
-					local floorData = mapData[f]
-					if not ( floorData.width ) then
-						floorData.width = harvData.BRx - harvData.TLx
-					end
-					if not ( floorData.height ) then
-						floorData.height = harvData.BRy - harvData.TLy
-					end
-					if not ( floorData.xOffset ) then
-						floorData.xOffset = harvData.TLx
-					end
-					if not ( floorData.yOffset ) then
-						floorData.yOffset = harvData.TLy
-					end
+	if not ( mapData ) then mapData = {}; end
+	if ( harvestedData.numFloors > 0 ) then
+		for f, harvData in pairs(harvestedData) do
+			if ( type(f) == "number" and f > 0 ) then
+				if not ( mapData[f] ) then
+					mapData[f] = {};
+				end
+				local floorData = mapData[f]
+				local TLx, TLy, BRx, BRy = -harvData.TLx, -harvData.TLy, -harvData.BRx, -harvData.BRy
+--				if ( harvestedData[0] ) then TLx = -TLx; TLy = -TLy; BRx = -BRx; BRy = -BRy; end -- reverse data if necessary
+--				if not ( TLx < BRx ) then
+--					printError("Bad x-axis Orientation (Floor): ", mapID, f, TLx, BRx);
+--				end
+--				if not ( TLy < BRy) then
+--					printError("Bad y-axis Orientation (Floor): ", mapID, f, TLy, BRy);
+--				end
+				if not ( floorData.width ) then
+					floorData.width = BRx - TLx
+				end
+				if not ( floorData.height ) then
+					floorData.height = BRy - TLy
+				end
+				if not ( floorData.xOffset ) then
+					floorData.xOffset = TLx
+				end
+				if not ( floorData.yOffset ) then
+					floorData.yOffset = TLy
 				end
 			end
-			for f = 1, harvestedData.numFloors do
-				if not ( mapData[f] ) then
+		end
+		for f = 1, harvestedData.numFloors do
+			if not ( mapData[f] ) then
+				if ( f == 1 and harvestedData[0] and harvestedData[0].TLx and harvestedData[0].TLy and harvestedData[0].BRx and harvestedData[0].BRy ) then
+					-- handle dungeon maps which use zone level data for the first floor
+					mapData[f] = {};
+					local floorData = mapData[f]
+					local harvData = harvestedData[0]
+					local TLx, TLy, BRx, BRy = -harvData.TLx, -harvData.TLy, -harvData.BRx, -harvData.BRy
+					if not ( TLx < BRx ) then
+						printError("Bad x-axis Orientation (Floor from Zone): ", mapID, f, TLx, BRx);
+					end
+					if not ( TLy < BRy) then
+						printError("Bad y-axis Orientation (Floor from Zone): ", mapID, f, TLy, BRy);
+					end
+					floorData.width = BRx - TLx
+					floorData.height = BRy - TLy
+					floorData.xOffset = TLx
+					floorData.yOffset = TLy
+				else
 					printError(("Astrolabe is missing data for %s [%d], floor %d."):format(harvestedData.mapName, mapID, f));
 				end
 			end
-			-- TODO: handle floored world maps
-		
-		else
-			local harvData = harvestedData[0]
-			if not ( mapData.width ) then
-				mapData.width = harvData.BRx - harvData.TLx
-			end
-			if not ( mapData.height ) then
-				mapData.height = harvData.BRy - harvData.TLy
-			end
-			if not ( mapData.xOffset ) then
-				mapData.xOffset = harvData.TLx
-			end
-			if not ( mapData.yOffset ) then
-				mapData.yOffset = harvData.TLy
-			end
-		
 		end
 	
 	else
-		mapData = {};
-		
-		if ( harvestedData.numFloors > 0 ) then
-			for f, harvData in pairs(harvestedData) do
-				if ( type(f) == "number" and f > 0 ) then
-					mapData[f] = {};
-					local floorData = mapData[f]
-					floorData.width = harvData.BRx - harvData.TLx
-					floorData.height = harvData.BRy - harvData.TLy
-					floorData.xOffset = harvData.TLx
-					floorData.yOffset = harvData.TLy
+		local harvData = harvestedData[0]
+		if ( harvData ~= nil ) then
+			local TLx, TLy, BRx, BRy = -harvData.TLx, -harvData.TLy, -harvData.BRx, -harvData.BRy
+			if not ( TLx==0 and TLy==0 and BRx==0 and BRy==0 ) then
+				if not ( TLx < BRx ) then
+					printError("Bad x-axis Orientation (Zone): ", mapID, TLx, BRx);
+				end
+				if not ( TLy < BRy) then
+					printError("Bad y-axis Orientation (Zone): ", mapID, TLy, BRy);
 				end
 			end
-			for f = 1, harvestedData.numFloors do
-				if not ( mapData[f] ) then
-					if ( f == 1 and harvestedData[0] and harvestedData[0].TLx and harvestedData[0].TLy and harvestedData[0].BRx and harvestedData[0].BRy ) then
-						-- handle dungeon maps which use zone level data for the first floor
-						mapData[f] = {};
-						local floorData = mapData[f]
-						local harvData = harvestedData[0]
-						floorData.width = harvData.BRx - harvData.TLx
-						floorData.height = harvData.BRy - harvData.TLy
-						floorData.xOffset = harvData.TLx
-						floorData.yOffset = harvData.TLy
-					else
-						printError(("Astrolabe is missing data for %s [%d], floor %d."):format(harvestedData.mapName, mapID, f));
-					end
-				end
+			if not ( mapData.width ) then
+				mapData.width = BRx - TLx
 			end
-
-		
+			if not ( mapData.height ) then
+				mapData.height = BRy - TLy
+			end
+			if not ( mapData.xOffset ) then
+				mapData.xOffset = TLx
+			end
+			if not ( mapData.yOffset ) then
+				mapData.yOffset = TLy
+			end
 		else
-			local harvData = harvestedData[0]
-			if ( harvData ) then
-				mapData.width = harvData.BRx - harvData.TLx
-				mapData.height = harvData.BRy - harvData.TLy
-				mapData.xOffset = harvData.TLx
-				mapData.yOffset = harvData.TLy
-			
+			if ( mapID == 751 ) then -- okay, this is Maelstrom continent
 			else
-				printError(("Astrolabe is missing data for %s [%d]."):format(harvestedData.mapName, mapID));
-			
-			end
-		
-		end
-		
-		-- if we don't have any data, we're gonna use zeroData, but we also need to 
-		-- setup the system and systemParent IDs so things don't get confused
-		if not ( next(mapData, nil) ) then
-			mapData = { xOffset = 0, height = 1, yOffset = 0, width = 1 };
-			-- if this is an outside continent level or world map then throw up an extra warning
-			if ( harvestedData.cont > 0 and harvestedData.zone == 0 ) then
-				printError(("Astrolabe is missing data for world map %s [%d] (%d, %d)."):format(harvestedData.mapName, mapID, harvestedData.cont, harvestedData.zone));
+				printError("Astrolabe harvested a map with no data at all: ", mapID)
 			end
 		end
-		
-		-- store the data in the WorldMapSize DB
-		WorldMapSize[mapID] = mapData;
 	
 	end
 	
-	-- correct maps with negative width/height
-	for _, mapData in pairs(WorldMapSize) do
-		if ( mapData.width and mapData.width < 0 ) then
-			mapData.xOffset = mapData.xOffset + mapData.width
-			mapData.width = abs(mapData.width)
-		end
-		if ( mapData.height and mapData.height < 0 ) then
-			mapData.yOffset = mapData.yOffset + mapData.height
-			mapData.height = abs(mapData.height)
-		end
-		for _, floorData in ipairs(mapData) do
-			if ( floorData.width and floorData.width < 0 ) then
-				floorData.xOffset = floorData.xOffset + floorData.width
-				floorData.width = abs(floorData.width)
-			end
-			if ( floorData.height and floorData.height < 0 ) then
-				floorData.yOffset = floorData.yOffset + floorData.height
-				floorData.height = abs(floorData.height)
-			end
+	-- if we don't have any data, we're gonna use zeroData, but we also need to 
+	-- setup the system and systemParent IDs so things don't get confused
+	if not ( next(mapData, nil) ) then
+		mapData = { xOffset = 0, height = 1, yOffset = 0, width = 1 };
+		-- if this is an outside continent level or world map then throw up an extra warning
+		if ( harvestedData.cont > 0 and harvestedData.zone == 0 ) then
+			printError(("Astrolabe is missing data for world map %s [%d] (%d, %d)."):format(harvestedData.mapName, mapID, harvestedData.cont, harvestedData.zone));
 		end
 	end
+	
+	-- store the data in the WorldMapSize DB
+	WorldMapSize[mapID] = mapData;
 	
 	-- setup system and systemParent IDs
 	if ( mapData and mapData ~= zeroData ) then
@@ -1511,6 +1460,28 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 	end
 end
 
+-- correct maps with negative width/height
+for _, mapData in pairs(WorldMapSize) do
+	if ( mapData.width and mapData.width < 0 ) then
+		mapData.xOffset = mapData.xOffset + mapData.width
+		mapData.width = abs(mapData.width)
+	end
+	if ( mapData.height and mapData.height < 0 ) then
+		mapData.yOffset = mapData.yOffset + mapData.height
+		mapData.height = abs(mapData.height)
+	end
+	for _, floorData in ipairs(mapData) do
+		if ( floorData.width and floorData.width < 0 ) then
+			floorData.xOffset = floorData.xOffset + floorData.width
+			floorData.width = abs(floorData.width)
+		end
+		if ( floorData.height and floorData.height < 0 ) then
+			floorData.yOffset = floorData.yOffset + floorData.height
+			floorData.height = abs(floorData.height)
+		end
+	end
+end
+
 setmetatable(WorldMapSize[0], zeroData); -- special case for World Map
 
 -- make sure we don't have any EXTRA data hanging around
@@ -1525,3 +1496,4 @@ setmetatable(WorldMapSize, zeroData); -- setup the metatable so that invalid map
 -- register this library with AstrolabeMapMonitor, this will cause a full update if PLAYER_LOGIN has already fired
 local AstrolabeMapMonitor = DongleStub("AstrolabeMapMonitor");
 AstrolabeMapMonitor:RegisterAstrolabeLibrary(Astrolabe, LIBRARY_VERSION_MAJOR);
+
