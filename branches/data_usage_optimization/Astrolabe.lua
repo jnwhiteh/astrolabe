@@ -1069,6 +1069,10 @@ end
 
 local function activate( newInstance, oldInstance )
 	if ( oldInstance ) then -- this is an upgrade activate
+		-- print upgrade debug info
+		local _, oldVersion = oldInstance:GetVersion();
+		printError("Upgrading "..LIBRARY_VERSION_MAJOR.." from version "..oldVersion.." to version "..LIBRARY_VERSION_MINOR);
+		
 		if ( oldInstance.DumpNewIconsCache ) then
 			oldInstance:DumpNewIconsCache()
 		end
@@ -1088,8 +1092,11 @@ local function activate( newInstance, oldInstance )
 	else
 		local frame = CreateFrame("Frame");
 		newInstance.processingFrame = frame;
-		
-		newInstance.HarvestedMapData = {};
+	end
+	configConstants = nil -- we don't need this anymore
+	
+	if not ( oldInstance and oldInstance.HarvestedMapData.VERSION == 2 ) then
+		newInstance.HarvestedMapData = { VERSION = 2 };
 		local HarvestedMapData = newInstance.HarvestedMapData;
 		
 		newInstance.ContinentList = { GetMapContinents() };
@@ -1114,7 +1121,6 @@ local function activate( newInstance, oldInstance )
 			end
 		end
 	end
-	configConstants = nil -- we don't need this anymore
 	
 	local frame = newInstance.processingFrame;
 	frame:Hide();
@@ -1334,6 +1340,10 @@ end
 zeroData = { xOffset = 0, height = 1, yOffset = 0, width = 1, __index = zeroDataFunc };
 setmetatable(zeroData, zeroData);
 
+--remove this temporarily
+local harvestedDataVersion = Astrolabe.HarvestedMapData.VERSION
+Astrolabe.HarvestedMapData.VERSION = nil
+
 for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 	local mapData = WorldMapSize[mapID];
 	if not ( mapData ) then mapData = {}; end
@@ -1457,6 +1467,9 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 		setmetatable(mapData, zeroData);
 	end
 end
+
+-- put the version back
+Astrolabe.HarvestedMapData.VERSION = harvestedDataVersion
 
 -- correct maps with negative width/height
 for _, mapData in pairs(WorldMapSize) do
