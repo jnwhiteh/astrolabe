@@ -1313,6 +1313,9 @@ WorldMapSize = {
 	[737] = {
 		system = 737,
 	},
+	[751] = {
+		system = 751,
+	},
 	[862] = {
 		systemParent = 0,
 	},
@@ -1321,6 +1324,8 @@ WorldMapSize = {
 local function zeroDataFunc(tbl, key)
 	if ( type(key) == "number" ) then
 		return zeroData;
+	elseif ( key == "width" or key == "height" ) then
+		return 1;
 	else
 		return 0;
 	end
@@ -1340,13 +1345,6 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 				end
 				local floorData = mapData[f]
 				local TLx, TLy, BRx, BRy = -harvData.TLx, -harvData.TLy, -harvData.BRx, -harvData.BRy
---				if ( harvestedData[0] ) then TLx = -TLx; TLy = -TLy; BRx = -BRx; BRy = -BRy; end -- reverse data if necessary
---				if not ( TLx < BRx ) then
---					printError("Bad x-axis Orientation (Floor): ", mapID, f, TLx, BRx);
---				end
---				if not ( TLy < BRy) then
---					printError("Bad y-axis Orientation (Floor): ", mapID, f, TLy, BRy);
---				end
 				if not ( floorData.width ) then
 					floorData.width = BRx - TLx
 				end
