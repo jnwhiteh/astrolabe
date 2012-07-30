@@ -1069,6 +1069,10 @@ end
 
 local function activate( newInstance, oldInstance )
 	if ( oldInstance ) then -- this is an upgrade activate
+		-- print upgrade debug info
+		local _, oldVersion = oldInstance:GetVersion();
+		printError("Upgrading "..LIBRARY_VERSION_MAJOR.." from version "..oldVersion.." to version "..LIBRARY_VERSION_MINOR);
+		
 		if ( oldInstance.DumpNewIconsCache ) then
 			oldInstance:DumpNewIconsCache()
 		end
@@ -1088,8 +1092,11 @@ local function activate( newInstance, oldInstance )
 	else
 		local frame = CreateFrame("Frame");
 		newInstance.processingFrame = frame;
-		
-		newInstance.HarvestedMapData = {};
+	end
+	configConstants = nil -- we don't need this anymore
+	
+	if not ( oldInstance and oldInstance.HarvestedMapData.VERSION == 2 ) then
+		newInstance.HarvestedMapData = { VERSION = 2 };
 		local HarvestedMapData = newInstance.HarvestedMapData;
 		
 		newInstance.ContinentList = { GetMapContinents() };
@@ -1114,7 +1121,6 @@ local function activate( newInstance, oldInstance )
 			end
 		end
 	end
-	configConstants = nil -- we don't need this anymore
 	
 	local frame = newInstance.processingFrame;
 	frame:Hide();
@@ -1313,6 +1319,9 @@ WorldMapSize = {
 	[737] = {
 		system = 737,
 	},
+	[751] = {
+		system = 751,
+	},
 	[862] = {
 		systemParent = 0,
 	},
@@ -1321,6 +1330,8 @@ WorldMapSize = {
 local function zeroDataFunc(tbl, key)
 	if ( type(key) == "number" ) then
 		return zeroData;
+	elseif ( key == "width" or key == "height" ) then
+		return 1;
 	else
 		return 0;
 	end
@@ -1328,6 +1339,10 @@ end
 
 zeroData = { xOffset = 0, height = 1, yOffset = 0, width = 1, __index = zeroDataFunc };
 setmetatable(zeroData, zeroData);
+
+--remove this temporarily
+local harvestedDataVersion = Astrolabe.HarvestedMapData.VERSION
+Astrolabe.HarvestedMapData.VERSION = nil
 
 for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 	local mapData = WorldMapSize[mapID];
@@ -1340,13 +1355,6 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 				end
 				local floorData = mapData[f]
 				local TLx, TLy, BRx, BRy = -harvData.TLx, -harvData.TLy, -harvData.BRx, -harvData.BRy
---				if ( harvestedData[0] ) then TLx = -TLx; TLy = -TLy; BRx = -BRx; BRy = -BRy; end -- reverse data if necessary
---				if not ( TLx < BRx ) then
---					printError("Bad x-axis Orientation (Floor): ", mapID, f, TLx, BRx);
---				end
---				if not ( TLy < BRy) then
---					printError("Bad y-axis Orientation (Floor): ", mapID, f, TLy, BRy);
---				end
 				if not ( floorData.width ) then
 					floorData.width = BRx - TLx
 				end
@@ -1459,6 +1467,9 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 		setmetatable(mapData, zeroData);
 	end
 end
+
+-- put the version back
+Astrolabe.HarvestedMapData.VERSION = harvestedDataVersion
 
 -- correct maps with negative width/height
 for _, mapData in pairs(WorldMapSize) do
