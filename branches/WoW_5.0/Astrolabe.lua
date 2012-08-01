@@ -1113,7 +1113,7 @@ local function activate( newInstance, oldInstance )
 			end
 		end
 		
-		for id=1,10000 do
+		for _, id in ipairs(GetAreaMaps()) do
 			if not ( HarvestedMapData[id] ) then
 				if ( SetMapByID(id) ) then
 					harvestMapData(HarvestedMapData);
@@ -1227,74 +1227,24 @@ WorldMapSize = {
 		},
 	},
 	[13] = {
-		height = 24533.2002,
 		systemParent = 0,
-		width = 36799.81055,
-		xOffset = -17066.59961,
-		yOffset = -12799.90039,
 	},
 	[14] = {
-		height = 27149.6875,
 		systemParent = 0,
-		width = 40741.18164,
-		xOffset = -18171.9707,
-		yOffset = -11176.34375,
 	},
-	[462] = {
-		system = 14,
-		height = 3283.33296,
-		width = 4924.99966,
-		xOffset = 2087.49924,
-		yOffset = -8641.66586,
-	},
-	[463] = {
-		system = 14,
-		height = 2200.0001,
-		width = 3300.00106,
-		xOffset = 2883.33179,
-		yOffset = -5866.66622,
-	},
-	[464] = {
-		system = 13,
-		height = 2714.58142,
-		width = 4070.83012,
-		xOffset = -7099.99723,
-		yOffset = -7339.58295,
-	},
+	[462] = {system = 14,},
+	[463] = {system = 14,},
+	[464] = {system = 13,},
 	[466] = {
 		systemParent = 466,
 	},
-	[471] = {
-		system = 13,
-		height = 704.68797,
-		width = 1056.76986,
-		xOffset = -6533.63117,
-		yOffset = -6523.65054,
-	},
-	[476] = {
-		system = 13,
-		height = 2174.99915,
-		width = 3262.50018,
-		xOffset = -7524.99874,
-		yOffset = -9375.00011,
-	},
-	[480] = {
-		system = 14,
-		height = 806.7719,
-		width = 1211.45879,
-		xOffset = 4000.74846,
-		yOffset = -7753.70947,
-	},
+	[471] = {system = 13,},
+	[476] = {system = 13,},
+	[480] = {system = 14,},
 	[485] = {
 		systemParent = 0,
 	},
-	[499] = {
-		system = 14,
-		height = 2218.75027,
-		width = 3327.08383,
-		xOffset = 2902.0814,
-		yOffset = -11168.74973,
-	},
+	[499] = {system = 14,},
 	[544] = {
 		system = 544,
 	},
@@ -1303,18 +1253,6 @@ WorldMapSize = {
 	},
 	[640] = {
 		system = 640,
-	},
-	[708] = {
-		height = 1343.75002,
-		width = 2014.58166,
-		xOffset = -4810.41725,
-		yOffset = 2160.4164,
-	},
-	[709] = {
-		height = 1224.99954,
-		width = 1837.49986,
-		xOffset = -5212.50115,
-		yOffset = 1222.91658,
 	},
 	[737] = {
 		system = 737,
@@ -1325,6 +1263,7 @@ WorldMapSize = {
 	[862] = {
 		systemParent = 0,
 	},
+	[894] = {system = 13,},
 }
 
 local function zeroDataFunc(tbl, key)
@@ -1340,11 +1279,30 @@ end
 zeroData = { xOffset = 0, height = 1, yOffset = 0, width = 1, __index = zeroDataFunc };
 setmetatable(zeroData, zeroData);
 
+-- get data on useful transforms
+local TRANSFORMS = {}
+for _, ID in ipairs(GetWorldMapTransforms()) do
+	local terrainMapID, newTerrainMapID, _, _, transformMinY, transformMaxY, transformMinX, transformMaxX, offsetY, offsetX = GetWorldMapTransformInfo(ID)
+	if ( offsetX ~= 0 or offsetY ~= 0 ) then
+		TRANSFORMS[ID] = {
+			terrainMapID = terrainMapID,
+			newTerrainMapID = newTerrainMapID,
+			BRy = -transformMinY,
+			TLy = -transformMaxY,
+			BRx = -transformMinX,
+			TLx = -transformMaxX,
+			offsetY = offsetY,
+			offsetX = offsetX,
+		}
+	end
+end
+
 --remove this temporarily
 local harvestedDataVersion = Astrolabe.HarvestedMapData.VERSION
 Astrolabe.HarvestedMapData.VERSION = nil
 
 for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
+	local _, terrainMapID = GetAreaMapInfo(mapID)
 	local mapData = WorldMapSize[mapID];
 	if not ( mapData ) then mapData = {}; end
 	if ( harvestedData.numFloors > 0 ) then
@@ -1403,6 +1361,20 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 		local harvData = harvestedData[0]
 		if ( harvData ~= nil ) then
 			local TLx, TLy, BRx, BRy = -harvData.TLx, -harvData.TLy, -harvData.BRx, -harvData.BRy
+			-- apply any necessary transforms
+			for transformID, transformData in pairs(TRANSFORMS) do
+				if ( transformData.terrainMapID == terrainMapID ) then
+					if ( (transformData.TLx < TLx and BRx < transformData.BRx) and (transformData.TLy < TLy and BRy < transformData.BRy) ) then
+						--print("Transform map", mapID, terrainMapID, transformID);
+						TLx = TLx - transformData.offsetX;
+						BRx = BRx - transformData.offsetX;
+						BRy = BRy - transformData.offsetY;
+						TLy = TLy - transformData.offsetY;
+					end
+				end
+			end
+			
+			
 			if not ( TLx==0 and TLy==0 and BRx==0 and BRy==0 ) then
 				if not ( TLx < BRx ) then
 					printError("Bad x-axis Orientation (Zone): ", mapID, TLx, BRx);
@@ -1476,6 +1448,9 @@ end
 
 -- put the version back
 Astrolabe.HarvestedMapData.VERSION = harvestedDataVersion
+
+-- done with Transforms data
+TRANSFORMS = nil
 
 setmetatable(WorldMapSize[0], zeroData); -- special case for World Map
 
