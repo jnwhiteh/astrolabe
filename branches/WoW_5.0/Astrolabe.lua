@@ -1354,7 +1354,13 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 					mapData[f] = {};
 				end
 				local floorData = mapData[f]
-				local TLx, TLy, BRx, BRy = -harvData.TLx, -harvData.TLy, -harvData.BRx, -harvData.BRy
+				local TLx, TLy, BRx, BRy = -harvData.BRx, -harvData.BRy, -harvData.TLx, -harvData.TLy
+				if not ( TLx < BRx ) then
+						printError("Bad x-axis Orientation (Floor): ", mapID, f, TLx, BRx);
+					end
+					if not ( TLy < BRy) then
+						printError("Bad y-axis Orientation (Floor): ", mapID, f, TLy, BRy);
+					end
 				if not ( floorData.width ) then
 					floorData.width = BRx - TLx
 				end
@@ -1470,28 +1476,6 @@ end
 
 -- put the version back
 Astrolabe.HarvestedMapData.VERSION = harvestedDataVersion
-
--- correct maps with negative width/height
-for _, mapData in pairs(WorldMapSize) do
-	if ( mapData.width and mapData.width < 0 ) then
-		mapData.xOffset = mapData.xOffset + mapData.width
-		mapData.width = abs(mapData.width)
-	end
-	if ( mapData.height and mapData.height < 0 ) then
-		mapData.yOffset = mapData.yOffset + mapData.height
-		mapData.height = abs(mapData.height)
-	end
-	for _, floorData in ipairs(mapData) do
-		if ( floorData.width and floorData.width < 0 ) then
-			floorData.xOffset = floorData.xOffset + floorData.width
-			floorData.width = abs(floorData.width)
-		end
-		if ( floorData.height and floorData.height < 0 ) then
-			floorData.yOffset = floorData.yOffset + floorData.height
-			floorData.height = abs(floorData.height)
-		end
-	end
-end
 
 setmetatable(WorldMapSize[0], zeroData); -- special case for World Map
 
