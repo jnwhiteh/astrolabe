@@ -1027,6 +1027,7 @@ end
 -- Library Registration
 --------------------------------------------------------------------------------------------------------------
 
+local HARVESTED_DATA_VERSION = 3; -- increment this when the format of the harvested data has to change
 local function harvestMapData( HarvestedMapData )
 	local mapData = {}
 	local mapName = GetMapInfo();
@@ -1043,6 +1044,10 @@ local function harvestMapData( HarvestedMapData )
 		mapData[0].TLy = TLy;
 		mapData[0].BRx = BRx;
 		mapData[0].BRy = BRy;
+	end
+	if ( not mapData[0] and numFloors == 0 and (GetCurrentMapDungeonLevel()) == 1 ) then
+		numFloors = 1;
+		mapData.hiddenFloor = true;
 	end
 	if ( numFloors > 0 ) then
 		for f = 1, numFloors do
@@ -1089,8 +1094,8 @@ local function activate( newInstance, oldInstance )
 	end
 	configConstants = nil -- we don't need this anymore
 	
-	if not ( oldInstance and oldInstance.HarvestedMapData.VERSION == 2 ) then
-		newInstance.HarvestedMapData = { VERSION = 2 };
+	if not ( oldInstance and oldInstance.HarvestedMapData.VERSION == HARVESTED_DATA_VERSION ) then
+		newInstance.HarvestedMapData = { VERSION = HARVESTED_DATA_VERSION };
 		local HarvestedMapData = newInstance.HarvestedMapData;
 		
 		newInstance.ContinentList = { GetMapContinents() };
@@ -1260,7 +1265,7 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 	local _, terrainMapID = GetAreaMapInfo(mapID)
 	local mapData = WorldMapSize[mapID];
 	if not ( mapData ) then mapData = {}; end
-	if ( harvestedData.numFloors > 0 ) then
+	if ( harvestedData.numFloors > 0 or harvestedData.hiddenFloor ) then
 		for f, harvData in pairs(harvestedData) do
 			if ( type(f) == "number" and f > 0 ) then
 				if not ( mapData[f] ) then
@@ -1310,6 +1315,12 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 					printError(("Astrolabe is missing data for %s [%d], floor %d."):format(harvestedData.mapName, mapID, f));
 				end
 			end
+		end
+		if ( harvestedData.hiddenFloor ) then
+			mapData.width = mapData[1].width
+			mapData.height = mapData[1].height
+			mapData.xOffset = mapData[1].xOffset
+			mapData.yOffset = mapData[1].yOffset
 		end
 	
 	else
