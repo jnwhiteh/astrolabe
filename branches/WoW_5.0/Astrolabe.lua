@@ -206,14 +206,14 @@ function Astrolabe:ComputeDistance( m1, f1, x1, y1, m2, f2, x2, y2 )
 				if ( m1 ~= 0 ) then
 					-- translate up from system 1
 					local cont1 = WorldMapSize[0][s1];
-					x1 = x1 - cont1.xOffset;
-					y1 = y1 - cont1.yOffset;
+					x1 = (x1 - cont1.xOffset) * cont1.scale;
+					y1 = (y1 - cont1.yOffset) * cont1.scale;
 				end
 				if ( m2 ~= 0 ) then
 					-- translate up from system 2
 					local cont2 = WorldMapSize[0][s2];
-					x2 = x2 - cont2.xOffset;
-					y2 = y2 - cont2.yOffset; 
+					x2 = (x2 - cont2.xOffset) * cont2.scale;
+					y2 = (y2 - cont2.yOffset) * cont2.scale; 
 				end
 				
 				xDelta = x2 - x1;
@@ -271,15 +271,15 @@ function Astrolabe:TranslateWorldMapPosition( M, F, xPos, yPos, nM, nF )
 				if ( M ~= 0 ) then
 					-- translate up to world map if we aren't there already
 					local cont = WorldMapSize[0][S];
-					xPos = xPos - cont.xOffset;
-					yPos = yPos - cont.yOffset;
+					xPos = (xPos - cont.xOffset) * cont.scale;
+					yPos = (yPos - cont.yOffset) * cont.scale;
 					mapData = WorldMapSize[0];
 				end
 				if ( nM ~= 0 ) then
 					-- translate down to the new continent
 					local nCont = WorldMapSize[0][nS];
-					xPos = xPos + nCont.xOffset;
-					yPos = yPos + nCont.yOffset;
+					xPos = (xPos / nCont.scale) + nCont.xOffset;
+					yPos = (yPos / nCont.scale) + nCont.yOffset;
 					mapData = WorldMapSize[nM];
 					if ( nF ~= 0 ) then
 						mapData = rawget(mapData, nF) or MicroDungeonSize[mapData.system][nF];
@@ -1202,26 +1202,30 @@ ValidMinimapShapes = {
 -- in game yards
 WorldMapSize = {
 	[0] = {
-		height = 31809.5226,
+		height = 22266.74312,
 		system = -1,
-		width = 47714.28706,
+		width = 33400.121,
 		xOffset = 0,
 		yOffset = 0,
 		[1] = {
-			xOffset = -8476.18794,
-			yOffset = -18428.57125,
+			xOffset = -10311.71318,
+			yOffset = -19819.33898,
+			scale = 0.56089997291565,
 		},
 		[0] = {
-			xOffset = -36714.2908,
-			yOffset = -14761.90445,
+			xOffset = -48226.86993,
+			yOffset = -16433.90283,
+			scale = 0.56300002336502,
 		},
 		[571] = {
-			xOffset = -25238.09562,
-			yOffset = -11047.61848,
+			xOffset = -29750.89905,
+			yOffset = -11454.50802,
+			scale = 0.5949000120163,
 		},
 		[870] = {
-			xOffset = -27693.71125,
-			yOffset = -29720.05946,
+			xOffset = -27693.71178,
+			yOffset = -29720.0585,
+			scale = 0.65140002965927,
 		},
 	},
 }
