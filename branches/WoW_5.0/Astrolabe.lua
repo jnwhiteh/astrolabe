@@ -200,7 +200,7 @@ function Astrolabe:ComputeDistance( m1, f1, x1, y1, m2, f2, x2, y2 )
 		else
 			local s1 = map1.system;
 			local s2 = map2.system;
-			if ( (m1==0 or WorldMapSize[0][s1]) and (m2==0 or WorldMapSize[0][s1]) ) then
+			if ( (m1==0 or WorldMapSize[0][s1]) and (m2==0 or WorldMapSize[0][s2]) ) then
 				x1, y1 = getSystemPosition(map1, f1, x1, y1);
 				x2, y2 = getSystemPosition(map2, f2, x2, y2);
 				if ( m1 ~= 0 ) then
