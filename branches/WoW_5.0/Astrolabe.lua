@@ -1266,7 +1266,7 @@ local harvestedDataVersion = Astrolabe.HarvestedMapData.VERSION
 Astrolabe.HarvestedMapData.VERSION = nil
 
 for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
-	local _, terrainMapID = GetAreaMapInfo(mapID)
+	local terrainMapID = GetAreaMapInfo(mapID)
 	local mapData = WorldMapSize[mapID];
 	if not ( mapData ) then mapData = {}; end
 	if ( harvestedData.numFloors > 0 or harvestedData.hiddenFloor ) then
@@ -1407,7 +1407,7 @@ Astrolabe.HarvestedMapData.VERSION = harvestedDataVersion
 
 -- micro dungeons
 for _, ID in ipairs(GetDungeonMaps()) do
-	local _, floorIndex, minX, maxX, minY, maxY, terrainMapID, parentWorldMapID = GetDungeonMapInfo(ID);
+	local floorIndex, minX, maxX, minY, maxY, terrainMapID, parentWorldMapID = GetDungeonMapInfo(ID);
 	local TLx, TLy, BRx, BRy = -maxX, -maxY, -minX, -minY
 	-- apply any necessary transforms
 	local transformApplied = false
