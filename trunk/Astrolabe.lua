@@ -50,7 +50,7 @@ if not DongleStub:IsNewerVersion(LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR) t
 local Astrolabe = {};
 
 -- define local variables for Data Tables (defined at the end of this file)
-local WorldMapSize, MinimapSize, ValidMinimapShapes, zeroData;
+local WorldMapSize, MicroDungeonSize, MinimapSize, ValidMinimapShapes, zeroData;
 
 function Astrolabe:GetVersion()
 	return LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR;
@@ -141,7 +141,7 @@ end
 
 local function getSystemPosition( mapData, f, x, y )
 	if ( f ~= 0 ) then
-		mapData = mapData[f];
+		mapData = rawget(mapData, f) or MicroDungeonSize[mapData.system][f];
 	end
 	x = x * mapData.width + mapData.xOffset;
 	y = y * mapData.height + mapData.yOffset;
@@ -182,7 +182,7 @@ function Astrolabe:ComputeDistance( m1, f1, x1, y1, m2, f2, x2, y2 )
 		-- points in the same zone on the same floor
 		local mapData = WorldMapSize[m1];
 		if ( f1 ~= 0 ) then
-			mapData = mapData[f1];
+			mapData = rawget(mapData, f1) or MicroDungeonSize[mapData.system][f1];
 		end
 		xDelta = (x2 - x1) * mapData.width;
 		yDelta = (y2 - y1) * mapData.height;
@@ -198,24 +198,22 @@ function Astrolabe:ComputeDistance( m1, f1, x1, y1, m2, f2, x2, y2 )
 			yDelta = (y2 - y1);
 		
 		else
-			local sp1 = map1.systemParent;
-			local sp2 = map2.systemParent;
-			if ( sp1 == sp2 ) then
-				--local worldID = sp1;
-				-- instead of a new local, reuse sp1
-				local s1 = map1.system;
-				local s2 = map2.system;
+			local s1 = map1.system;
+			local s2 = map2.system;
+			if ( (m1==0 or WorldMapSize[0][s1]) and (m2==0 or WorldMapSize[0][s2]) ) then
 				x1, y1 = getSystemPosition(map1, f1, x1, y1);
 				x2, y2 = getSystemPosition(map2, f2, x2, y2);
-				if not ( s1 == map1.systemParent ) then
-					local cont1 = WorldMapSize[sp1][s1];
-					x1 = x1 - cont1.xOffset;
-					y1 = y1 - cont1.yOffset;
+				if ( m1 ~= 0 ) then
+					-- translate up from system 1
+					local cont1 = WorldMapSize[0][s1];
+					x1 = (x1 - cont1.xOffset) * cont1.scale;
+					y1 = (y1 - cont1.yOffset) * cont1.scale;
 				end
-				if not ( s2 == map2.systemParent ) then
-					local cont2 = WorldMapSize[sp1][s2];
-					x2 = x2 - cont2.xOffset;
-					y2 = y2 - cont2.yOffset;
+				if ( m2 ~= 0 ) then
+					-- translate up from system 2
+					local cont2 = WorldMapSize[0][s2];
+					x2 = (x2 - cont2.xOffset) * cont2.scale;
+					y2 = (y2 - cont2.yOffset) * cont2.scale; 
 				end
 				
 				xDelta = x2 - x1;
@@ -260,35 +258,31 @@ function Astrolabe:TranslateWorldMapPosition( M, F, xPos, yPos, nM, nF )
 			xPos, yPos = getSystemPosition(map, F, xPos, yPos);
 			mapData = WorldMapSize[nM];
 			if ( nF ~= 0 ) then
-				mapData = mapData[nF];
+				mapData = rawget(mapData, nF) or MicroDungeonSize[mapData.system][nF];
 			end
 		
 		else
 			-- different continents, same world
-			local SP = map.systemParent;
-			local nSP = nMap.systemParent;
-			if ( SP == nSP ) then
-				--local worldID = SP;
-				-- instead of a new local, reuse SP
-				local S = map.system;
-				local nS = nMap.system;
+			local S = map.system;
+			local nS = nMap.system;
+			if ( (M==0 or WorldMapSize[0][S]) and (nM==0 or WorldMapSize[0][nS]) ) then
 				mapData = WorldMapSize[M];
 				xPos, yPos = getSystemPosition(mapData, F, xPos, yPos);
-				if ( M ~= SP ) then
+				if ( M ~= 0 ) then
 					-- translate up to world map if we aren't there already
-					local cont = WorldMapSize[SP][S];
-					xPos = xPos - cont.xOffset;
-					yPos = yPos - cont.yOffset;
-					mapData = WorldMapSize[SP];
+					local cont = WorldMapSize[0][S];
+					xPos = (xPos - cont.xOffset) * cont.scale;
+					yPos = (yPos - cont.yOffset) * cont.scale;
+					mapData = WorldMapSize[0];
 				end
-				if ( nM ~= SP ) then
+				if ( nM ~= 0 ) then
 					-- translate down to the new continent
-					local nCont = WorldMapSize[SP][nS];
-					xPos = xPos + nCont.xOffset;
-					yPos = yPos + nCont.yOffset;
+					local nCont = WorldMapSize[0][nS];
+					xPos = (xPos / nCont.scale) + nCont.xOffset;
+					yPos = (yPos / nCont.scale) + nCont.yOffset;
 					mapData = WorldMapSize[nM];
 					if ( nF ~= 0 ) then
-						mapData = mapData[nF];
+						mapData = rawget(mapData, nF) or MicroDungeonSize[mapData.system][nF];
 					end
 				end
 			
@@ -397,9 +391,9 @@ function Astrolabe:GetMapInfo( mapID, mapFloor )
 	
 	mapFloor = mapFloor or min(#WorldMapSize[mapID], 1);
 	local mapData = WorldMapSize[mapID];
-	local system, systemParent = mapData.system, mapData.systemParent
+	local system, systemParent = mapData.system, WorldMapSize[0][mapData.system] and true or false
 	if ( mapFloor ~= 0 ) then
-		mapData = mapData[mapFloor];
+		mapData = rawget(mapData, mapFloor) or MicroDungeonSize[mapData.system][mapFloor];
 	end
 	if ( mapData ~= zeroData ) then
 		return system, systemParent, mapData.width, mapData.height, mapData.xOffset, mapData.yOffset;
@@ -1033,6 +1027,7 @@ end
 -- Library Registration
 --------------------------------------------------------------------------------------------------------------
 
+local HARVESTED_DATA_VERSION = 3; -- increment this when the format of the harvested data has to change
 local function harvestMapData( HarvestedMapData )
 	local mapData = {}
 	local mapName = GetMapInfo();
@@ -1049,6 +1044,10 @@ local function harvestMapData( HarvestedMapData )
 		mapData[0].TLy = TLy;
 		mapData[0].BRx = BRx;
 		mapData[0].BRy = BRy;
+	end
+	if ( not mapData[0] and numFloors == 0 and (GetCurrentMapDungeonLevel()) == 1 ) then
+		numFloors = 1;
+		mapData.hiddenFloor = true;
 	end
 	if ( numFloors > 0 ) then
 		for f = 1, numFloors do
@@ -1095,8 +1094,8 @@ local function activate( newInstance, oldInstance )
 	end
 	configConstants = nil -- we don't need this anymore
 	
-	if not ( oldInstance and oldInstance.HarvestedMapData.VERSION == 2 ) then
-		newInstance.HarvestedMapData = { VERSION = 2 };
+	if not ( oldInstance and oldInstance.HarvestedMapData.VERSION == HARVESTED_DATA_VERSION ) then
+		newInstance.HarvestedMapData = { VERSION = HARVESTED_DATA_VERSION };
 		local HarvestedMapData = newInstance.HarvestedMapData;
 		
 		newInstance.ContinentList = { GetMapContinents() };
@@ -1113,7 +1112,7 @@ local function activate( newInstance, oldInstance )
 			end
 		end
 		
-		for id=1,10000 do
+		for _, id in ipairs(GetAreaMaps()) do
 			if not ( HarvestedMapData[id] ) then
 				if ( SetMapByID(id) ) then
 					harvestMapData(HarvestedMapData);
@@ -1203,158 +1202,87 @@ ValidMinimapShapes = {
 -- in game yards
 WorldMapSize = {
 	[0] = {
-		height = 31809.5226,
-		system = 0,
-		systemParent = 0,
-		width = 47714.28706,
+		height = 22266.74312,
+		system = -1,
+		width = 33400.121,
 		xOffset = 0,
 		yOffset = 0,
-		[13] = {
-			xOffset = -8476.18794,
-			yOffset = -18428.57125,
+		[1] = {
+			xOffset = -10311.71318,
+			yOffset = -19819.33898,
+			scale = 0.56089997291565,
 		},
-		[14] = {
-			xOffset = -36714.2908,
-			yOffset = -14761.90445,
+		[0] = {
+			xOffset = -48226.86993,
+			yOffset = -16433.90283,
+			scale = 0.56300002336502,
 		},
-		[485] = {
-			xOffset = -25238.09562,
-			yOffset = -11047.61848,
+		[571] = {
+			xOffset = -29750.89905,
+			yOffset = -11454.50802,
+			scale = 0.5949000120163,
 		},
-		[862] = {
-			xOffset = -27693.71125,
-			yOffset = -29720.05946,
+		[870] = {
+			xOffset = -27693.71178,
+			yOffset = -29720.0585,
+			scale = 0.65140002965927,
 		},
-	},
-	[13] = {
-		height = 24533.2002,
-		systemParent = 0,
-		width = 36799.81055,
-		xOffset = -17066.59961,
-		yOffset = -12799.90039,
-	},
-	[14] = {
-		height = 27149.6875,
-		systemParent = 0,
-		width = 40741.18164,
-		xOffset = -18171.9707,
-		yOffset = -11176.34375,
-	},
-	[462] = {
-		system = 14,
-		height = 3283.33296,
-		width = 4924.99966,
-		xOffset = 2087.49924,
-		yOffset = -8641.66586,
-	},
-	[463] = {
-		system = 14,
-		height = 2200.0001,
-		width = 3300.00106,
-		xOffset = 2883.33179,
-		yOffset = -5866.66622,
-	},
-	[464] = {
-		system = 13,
-		height = 2714.58142,
-		width = 4070.83012,
-		xOffset = -7099.99723,
-		yOffset = -7339.58295,
-	},
-	[466] = {
-		systemParent = 466,
-	},
-	[471] = {
-		system = 13,
-		height = 704.68797,
-		width = 1056.76986,
-		xOffset = -6533.63117,
-		yOffset = -6523.65054,
-	},
-	[476] = {
-		system = 13,
-		height = 2174.99915,
-		width = 3262.50018,
-		xOffset = -7524.99874,
-		yOffset = -9375.00011,
-	},
-	[480] = {
-		system = 14,
-		height = 806.7719,
-		width = 1211.45879,
-		xOffset = 4000.74846,
-		yOffset = -7753.70947,
-	},
-	[485] = {
-		systemParent = 0,
-	},
-	[499] = {
-		system = 14,
-		height = 2218.75027,
-		width = 3327.08383,
-		xOffset = 2902.0814,
-		yOffset = -11168.74973,
-	},
-	[544] = {
-		system = 544,
-	},
-	[605] = {
-		system = 605,
-	},
-	[640] = {
-		system = 640,
-	},
-	[708] = {
-		height = 1343.75002,
-		width = 2014.58166,
-		xOffset = -4810.41725,
-		yOffset = 2160.4164,
-	},
-	[709] = {
-		height = 1224.99954,
-		width = 1837.49986,
-		xOffset = -5212.50115,
-		yOffset = 1222.91658,
-	},
-	[737] = {
-		system = 737,
-	},
-	[751] = {
-		system = 751,
-	},
-	[862] = {
-		systemParent = 0,
 	},
 }
+
+MicroDungeonSize = {}
 
 local function zeroDataFunc(tbl, key)
 	if ( type(key) == "number" ) then
 		return zeroData;
-	elseif ( key == "width" or key == "height" ) then
-		return 1;
 	else
-		return 0;
+		return rawget(zeroData, key);
 	end
 end
 
 zeroData = { xOffset = 0, height = 1, yOffset = 0, width = 1, __index = zeroDataFunc };
 setmetatable(zeroData, zeroData);
 
+-- get data on useful transforms
+local TRANSFORMS = {}
+for _, ID in ipairs(GetWorldMapTransforms()) do
+	local terrainMapID, newTerrainMapID, _, _, transformMinY, transformMaxY, transformMinX, transformMaxX, offsetY, offsetX = GetWorldMapTransformInfo(ID)
+	if ( offsetX ~= 0 or offsetY ~= 0 ) then
+		TRANSFORMS[ID] = {
+			terrainMapID = terrainMapID,
+			newTerrainMapID = newTerrainMapID,
+			BRy = -transformMinY,
+			TLy = -transformMaxY,
+			BRx = -transformMinX,
+			TLx = -transformMaxX,
+			offsetY = offsetY,
+			offsetX = offsetX,
+		}
+	end
+end
+
 --remove this temporarily
 local harvestedDataVersion = Astrolabe.HarvestedMapData.VERSION
 Astrolabe.HarvestedMapData.VERSION = nil
 
 for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
+	local terrainMapID = GetAreaMapInfo(mapID)
 	local mapData = WorldMapSize[mapID];
 	if not ( mapData ) then mapData = {}; end
-	if ( harvestedData.numFloors > 0 ) then
+	if ( harvestedData.numFloors > 0 or harvestedData.hiddenFloor ) then
 		for f, harvData in pairs(harvestedData) do
 			if ( type(f) == "number" and f > 0 ) then
 				if not ( mapData[f] ) then
 					mapData[f] = {};
 				end
 				local floorData = mapData[f]
-				local TLx, TLy, BRx, BRy = -harvData.TLx, -harvData.TLy, -harvData.BRx, -harvData.BRy
+				local TLx, TLy, BRx, BRy = -harvData.BRx, -harvData.BRy, -harvData.TLx, -harvData.TLy
+				if not ( TLx < BRx ) then
+						printError("Bad x-axis Orientation (Floor): ", mapID, f, TLx, BRx);
+					end
+					if not ( TLy < BRy) then
+						printError("Bad y-axis Orientation (Floor): ", mapID, f, TLy, BRy);
+					end
 				if not ( floorData.width ) then
 					floorData.width = BRx - TLx
 				end
@@ -1392,11 +1320,30 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 				end
 			end
 		end
+		if ( harvestedData.hiddenFloor ) then
+			mapData.width = mapData[1].width
+			mapData.height = mapData[1].height
+			mapData.xOffset = mapData[1].xOffset
+			mapData.yOffset = mapData[1].yOffset
+		end
 	
 	else
 		local harvData = harvestedData[0]
 		if ( harvData ~= nil ) then
 			local TLx, TLy, BRx, BRy = -harvData.TLx, -harvData.TLy, -harvData.BRx, -harvData.BRy
+			-- apply any necessary transforms
+			for transformID, transformData in pairs(TRANSFORMS) do
+				if ( transformData.terrainMapID == terrainMapID ) then
+					if ( (transformData.TLx < TLx and BRx < transformData.BRx) and (transformData.TLy < TLy and BRy < transformData.BRy) ) then
+						TLx = TLx - transformData.offsetX;
+						BRx = BRx - transformData.offsetX;
+						BRy = BRy - transformData.offsetY;
+						TLy = TLy - transformData.offsetY;
+						terrainMapID = transformData.newTerrainMapID;
+						break;
+					end
+				end
+			end
 			if not ( TLx==0 and TLy==0 and BRx==0 and BRy==0 ) then
 				if not ( TLx < BRx ) then
 					printError("Bad x-axis Orientation (Zone): ", mapID, TLx, BRx);
@@ -1439,29 +1386,16 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 	-- store the data in the WorldMapSize DB
 	WorldMapSize[mapID] = mapData;
 	
-	-- setup system and systemParent IDs
+	
 	if ( mapData and mapData ~= zeroData ) then
+		-- setup system IDs
 		if not ( mapData.system ) then
-			mapData.system = mapID;
-			
-			if ( harvestedData.cont > 0 and harvestedData.zone > 0 ) then
-				mapData.system = Astrolabe:GetMapID(harvestedData.cont, nil);
-			end
-		end
-		if not ( mapData.systemParent ) then
-			mapData.systemParent = mapID;
-			
-			local systemData = WorldMapSize[mapData.system];
-			if ( systemData and systemData.systemParent ) then
-				mapData.systemParent = systemData.systemParent;
-			end
+			mapData.system = terrainMapID;
 		end
 		
-		-- systemParent sanity checks
-		if ( mapData.system ~= mapData.systemParent ) then
-			if not ( WorldMapSize[mapData.systemParent] and WorldMapSize[mapData.systemParent][mapData.system] ) then
-				printError("Astrolabe detected a child system that the parent doesn't know about.  VERY BAD!!!");
-			end
+		-- determine terrainMapID for micro-dungeons
+		if ( harvestedData.cont > 0 and harvestedData.zone > 0 ) then
+			MicroDungeonSize[terrainMapID] = {}
 		end
 		
 		setmetatable(mapData, zeroData);
@@ -1471,33 +1405,50 @@ end
 -- put the version back
 Astrolabe.HarvestedMapData.VERSION = harvestedDataVersion
 
--- correct maps with negative width/height
-for _, mapData in pairs(WorldMapSize) do
-	if ( mapData.width and mapData.width < 0 ) then
-		mapData.xOffset = mapData.xOffset + mapData.width
-		mapData.width = abs(mapData.width)
-	end
-	if ( mapData.height and mapData.height < 0 ) then
-		mapData.yOffset = mapData.yOffset + mapData.height
-		mapData.height = abs(mapData.height)
-	end
-	for _, floorData in ipairs(mapData) do
-		if ( floorData.width and floorData.width < 0 ) then
-			floorData.xOffset = floorData.xOffset + floorData.width
-			floorData.width = abs(floorData.width)
+-- micro dungeons
+for _, ID in ipairs(GetDungeonMaps()) do
+	local floorIndex, minX, maxX, minY, maxY, terrainMapID, parentWorldMapID = GetDungeonMapInfo(ID);
+	local TLx, TLy, BRx, BRy = -maxX, -maxY, -minX, -minY
+	-- apply any necessary transforms
+	local transformApplied = false
+	for transformID, transformData in pairs(TRANSFORMS) do
+		if ( transformData.terrainMapID == terrainMapID ) then
+			if ( (transformData.TLx < TLx and BRx < transformData.BRx) and (transformData.TLy < TLy and BRy < transformData.BRy) ) then
+				TLx = TLx - transformData.offsetX;
+				BRx = BRx - transformData.offsetX;
+				BRy = BRy - transformData.offsetY;
+				TLy = TLy - transformData.offsetY;
+				terrainMapID = transformData.newTerrainMapID;
+				transformApplied = true;
+				break;
+			end
 		end
-		if ( floorData.height and floorData.height < 0 ) then
-			floorData.yOffset = floorData.yOffset + floorData.height
-			floorData.height = abs(floorData.height)
+	end
+	if ( MicroDungeonSize[terrainMapID] ) then
+		-- only consider systems that can have micro dungeons
+		if ( MicroDungeonSize[terrainMapID][floorIndex] and not transformApplied ) then
+			printError("Astrolabe detected a duplicate microdungeon floor!", terrainMapID, ID);
 		end
+		MicroDungeonSize[terrainMapID][floorIndex] = {
+			width = BRx - TLx,
+			height = BRy - TLy,
+			xOffset = TLx,
+			yOffset = TLy,
+		};
 	end
 end
 
-setmetatable(WorldMapSize[0], zeroData); -- special case for World Map
+-- done with Transforms data
+TRANSFORMS = nil
+
+for _, data in pairs(MicroDungeonSize) do
+	setmetatable(data, zeroData);
+end
+setmetatable(MicroDungeonSize, zeroData);
 
 -- make sure we don't have any EXTRA data hanging around
 for mapID, mapData in pairs(WorldMapSize) do
-	if ( getmetatable(mapData) ~= zeroData ) then
+	if ( mapID ~= 0 and getmetatable(mapData) ~= zeroData ) then
 		printError("Astrolabe has hard coded data for an invalid map ID", mapID);
 	end
 end
