@@ -1240,6 +1240,10 @@ MicroDungeonSize = {}
 
 -- Map Data API Flag Fields --
 
+-- GetAreaMapInfo - flags
+local WORLDMAPAREA_DEFAULT_DUNGEON_FLOOR_IS_TERRAIN = 0x00000004
+local WORLDMAPAREA_VIRTUAL_CONTINENT = 0x00000008
+
 -- GetDungeonMapInfo - flags
 local DUNGEONMAP_MICRO_DUNGEON = 0x00000001
 
@@ -1281,12 +1285,10 @@ local harvestedDataVersion = Astrolabe.HarvestedMapData.VERSION
 Astrolabe.HarvestedMapData.VERSION = nil
 
 for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
-	local terrainMapID = GetAreaMapInfo(mapID)
+	local terrainMapID, _, _, _, _, _, _, _, _, flags = GetAreaMapInfo(mapID)
+	local originSystem = terrainMapID;
 	local mapData = WorldMapSize[mapID];
 	if not ( mapData ) then mapData = {}; end
-	if not ( mapData.originSystem ) then
-		mapData.originSystem = terrainMapID;
-	end
 	if ( harvestedData.numFloors > 0 or harvestedData.hiddenFloor ) then
 		for f, harvData in pairs(harvestedData) do
 			if ( type(f) == "number" and f > 0 ) then
@@ -1317,7 +1319,8 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 		end
 		for f = 1, harvestedData.numFloors do
 			if not ( mapData[f] ) then
-				if ( f == 1 and harvestedData[0] and harvestedData[0].TLx and harvestedData[0].TLy and harvestedData[0].BRx and harvestedData[0].BRy ) then
+				if ( f == 1 and harvestedData[0] and harvestedData[0].TLx and harvestedData[0].TLy and harvestedData[0].BRx and harvestedData[0].BRy and
+				  band(flags, WORLDMAPAREA_DEFAULT_DUNGEON_FLOOR_IS_TERRAIN) == WORLDMAPAREA_DEFAULT_DUNGEON_FLOOR_IS_TERRAIN ) then
 					-- handle dungeon maps which use zone level data for the first floor
 					mapData[f] = {};
 					local floorData = mapData[f]
@@ -1396,9 +1399,13 @@ for mapID, harvestedData in pairs(Astrolabe.HarvestedMapData) do
 	if not ( next(mapData, nil) ) then
 		mapData = { xOffset = 0, height = 1, yOffset = 0, width = 1 };
 		-- if this is an outside continent level or world map then throw up an extra warning
-		if ( harvestedData.cont > 0 and harvestedData.zone == 0 ) then
+		if ( harvestedData.cont > 0 and harvestedData.zone == 0 and not (band(flags, WORLDMAPAREA_VIRTUAL_CONTINENT) == WORLDMAPAREA_VIRTUAL_CONTINENT) ) then
 			printError(("Astrolabe is missing data for world map %s [%d] (%d, %d)."):format(harvestedData.mapName, mapID, harvestedData.cont, harvestedData.zone));
 		end
+	end
+	
+	if not ( mapData.originSystem ) then
+		mapData.originSystem = originSystem;
 	end
 	
 	-- store the data in the WorldMapSize DB
