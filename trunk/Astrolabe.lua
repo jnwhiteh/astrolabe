@@ -401,6 +401,13 @@ function Astrolabe:GetMapInfo( mapID, mapFloor )
 	end
 end
 
+function Astrolabe:GetMapFilename( mapID )
+	local mapData = self.HarvestedMapData[mapID]
+	if ( mapData ) then
+		return mapData.mapName
+	end
+end
+
 
 --------------------------------------------------------------------------------------------------------------
 -- Working Table Cache System
