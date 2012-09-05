@@ -566,7 +566,7 @@ function Astrolabe:PlaceIconOnMinimap( icon, mapID, mapFloor, xPos, yPos )
 	minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
 	
 	-- place the icon on the Minimap and :Show() it
-	local map = Minimap
+	local map = self.Minimap
 	placeIconOnMinimap(map, map:GetZoom(), map:GetWidth(), map:GetHeight(), icon, dist, xDist, yDist);
 	icon:Show()
 	
@@ -632,7 +632,7 @@ do
 			
 			local M, F, x, y = self:GetCurrentPlayerPosition();
 			if ( M and M >= 0 ) then
-				local Minimap = Minimap;
+				local Minimap = Astrolabe.Minimap;
 				local lastPosition = self.LastPlayerPosition;
 				local lM, lF, lx, ly = unpack(lastPosition);
 				
@@ -761,6 +761,7 @@ do
 			
 			local M, F, x, y = self:GetCurrentPlayerPosition();
 			if ( M and M >= 0 ) then
+				local Minimap = Astrolabe.Minimap;
 				minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
 				if ( minimapRotationEnabled ) then
 					minimapRotationOffset = GetPlayerFacing();
@@ -774,7 +775,6 @@ do
 				
 				local currentZoom = Minimap:GetZoom();
 				lastZoom = currentZoom;
-				local Minimap = Minimap;
 				local mapWidth = Minimap:GetWidth();
 				local mapHeight = Minimap:GetHeight();
 				local count = 0
@@ -880,6 +880,17 @@ function Astrolabe:Register_OnEdgeChanged_Callback( func, ident )
 	self.IconsOnEdge_GroupChangeCallbacks[func] = ident;
 end
 
+function Astrolabe:SetTargetMinimap( newMinimap )
+	argcheck(newMinimap, 2, "table");
+	assert(3, newMinimap.IsObjectType, "Astrolabe:SetTargetMinimap( newMinimap ) - argument is not a Minimap");
+	assert(3, type(newMinimap.IsObjectType) == "function", "Astrolabe:SetTargetMinimap( newMinimap ) - argument is not a Minimap");
+	assert(3, newMinimap:IsObjectType("Minimap"), "Astrolabe:SetTargetMinimap( newMinimap ) - argument is not a Minimap");
+	
+	self.processingFrame:SetParent(newMinimap);
+	self.Minimap = newMinimap;
+	self:CalculateMinimapIconPositions(true); -- re-anchor all currently managed icons
+end
+
 --*****************************************************************************
 -- INTERNAL USE ONLY PLEASE!!!
 -- Calling this function at the wrong time can cause errors
@@ -933,7 +944,7 @@ end
 function Astrolabe:OnEvent( frame, event )
 	if ( event == "MINIMAP_UPDATE_ZOOM" ) then
 		-- update minimap zoom scale
-		local Minimap = Minimap;
+		local Minimap = self.Minimap;
 		local curZoom = Minimap:GetZoom();
 		if ( GetCVar("minimapZoom") == GetCVar("minimapInsideZoom") ) then
 			if ( curZoom < 2 ) then
@@ -1095,8 +1106,12 @@ local function activate( newInstance, oldInstance )
 		end
 		newInstance.MinimapIconCount = iconCount
 		
+		-- explicity carry over our Minimap reference, or create it if we don't already have one
+		newInstance.Minimap = oldInstance.Minimap or Minimap
+		
 		Astrolabe = oldInstance;
 	else
+		newInstance.Minimap = Minimap
 		local frame = CreateFrame("Frame");
 		newInstance.processingFrame = frame;
 	end
@@ -1129,9 +1144,10 @@ local function activate( newInstance, oldInstance )
 		end
 	end
 	
+	local Minimap = newInstance.Minimap
 	local frame = newInstance.processingFrame;
 	frame:Hide();
-	frame:SetParent("Minimap");
+	frame:SetParent(Minimap);
 	frame:UnregisterAllEvents();
 	frame:RegisterEvent("MINIMAP_UPDATE_ZOOM");
 	frame:RegisterEvent("PLAYER_LEAVING_WORLD");
