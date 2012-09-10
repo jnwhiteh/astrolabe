@@ -78,6 +78,7 @@ Astrolabe.LastPlayerPosition = { 0, 0, 0, 0 };
 Astrolabe.MinimapIcons = {};
 Astrolabe.IconsOnEdge = {};
 Astrolabe.IconsOnEdge_GroupChangeCallbacks = {};
+Astrolabe.TargetMinimapChanged_Callbacks = {};
 
 Astrolabe.MinimapIconCount = 0
 Astrolabe.ForceNextUpdate = false;
@@ -107,6 +108,7 @@ local yield = coroutine.yield
 local next = next
 local GetFramerate = GetFramerate
 local band = bit.band
+local issecurevariable = issecurevariable
 
 local real_GetCurrentMapAreaID = GetCurrentMapAreaID
 local function GetCurrentMapAreaID()
@@ -511,7 +513,7 @@ end
 function Astrolabe:PlaceIconOnMinimap( icon, mapID, mapFloor, xPos, yPos )
 	-- check argument types
 	argcheck(icon, 2, "table");
-	assert(3, icon.SetPoint and icon.ClearAllPoints, "Usage Message");
+	assert(3, icon.SetPoint and icon.ClearAllPoints and icon.GetWidth, "Usage Message");
 	argcheck(mapID, 3, "number");
 	argcheck(mapFloor, 4, "number", "nil");
 	argcheck(xPos, 5, "number");
@@ -568,6 +570,23 @@ function Astrolabe:PlaceIconOnMinimap( icon, mapID, mapFloor, xPos, yPos )
 	-- place the icon on the Minimap and :Show() it
 	local map = self.Minimap
 	placeIconOnMinimap(map, map:GetZoom(), map:GetWidth(), map:GetHeight(), icon, dist, xDist, yDist);
+	-- re-parent the icon if necessary
+	if ( icon.GetParent and icon.SetParent ) then
+		local iconParent = icon:GetParent()
+		if ( iconParent) then
+			if ( iconParent == map ) then
+				-- do nothing
+			elseif ( iconParent:IsObjectType("Minimap") ) then
+				icon:SetParent(map);
+			else
+				 -- just in case our icon has an ancestor inbetween it and the Minimap
+				iconParent = iconParent:GetParent()
+				if ( iconParent and iconParent ~= map and iconParent:IsObjectType("Minimap") ) then
+					iconParent:SetParent(map);
+				end
+			end
+		end
+	end
 	icon:Show()
 	
 	-- We know this icon's position is valid, so we need to make sure the icon placement system is active.  
@@ -881,14 +900,40 @@ function Astrolabe:Register_OnEdgeChanged_Callback( func, ident )
 end
 
 function Astrolabe:SetTargetMinimap( newMinimap )
+	if ( newMinimap == self.Minimap ) then
+		return; -- no change
+	end
 	argcheck(newMinimap, 2, "table");
+	assert(3, issecurevariable(newMinimap, 0), "Astrolabe:SetTargetMinimap( newMinimap ) - argument is not a Minimap");
 	assert(3, newMinimap.IsObjectType, "Astrolabe:SetTargetMinimap( newMinimap ) - argument is not a Minimap");
 	assert(3, type(newMinimap.IsObjectType) == "function", "Astrolabe:SetTargetMinimap( newMinimap ) - argument is not a Minimap");
 	assert(3, newMinimap:IsObjectType("Minimap"), "Astrolabe:SetTargetMinimap( newMinimap ) - argument is not a Minimap");
 	
+	local oldMinimap = self.Minimap;
 	self.processingFrame:SetParent(newMinimap);
 	self.Minimap = newMinimap;
 	self:CalculateMinimapIconPositions(true); -- re-anchor all currently managed icons
+	-- re-parent all currently managed icons
+	for icon, data in pairs(self.MinimapIcons) do
+		if ( icon.GetParent and icon.SetParent ) then
+			if ( icon:GetParent() == oldMinimap ) then
+				icon:SetParent(newMinimap);
+			elseif ( icon:GetParent() and icon:GetParent():GetParent() == oldMinimap ) then -- just incase our icons have an ancestor inbetween them and the Minimap
+				icon:GetParent():SetParent(newMinimap);
+			end
+		end
+	end
+	
+	for func in pairs(self.TargetMinimapChanged_Callbacks) do
+		pcall(func);
+	end
+end
+
+function Astrolabe:Register_TargetMinimapChanged_Callback( func, ident )
+	-- check argument types
+	argcheck(func, 2, "function");
+	
+	self.TargetMinimapChanged_Callbacks[func] = ident;
 end
 
 --*****************************************************************************
