@@ -321,7 +321,14 @@ function Astrolabe:GetUnitPosition( unit, noMapChange )
 		SetMapToCurrentZone();
 		x, y = GetPlayerMapPosition(unit);
 		if ( x <= 0 and y <= 0 ) then
-			WorldMapZoomOutButton_OnClick();
+			-- attempt to zoom out once - logic copied from WorldMapZoomOutButton_OnClick()
+				if ( ZoomOut() ) then
+					-- do nothing
+				elseif ( GetCurrentMapZone() ~= WORLDMAP_WORLD_ID ) then
+					SetMapZoom(GetCurrentMapContinent());
+				else
+					SetMapZoom(WORLDMAP_WORLD_ID);
+				end
 			x, y = GetPlayerMapPosition(unit);
 			if ( x <= 0 and y <= 0 ) then
 				-- we are in an instance without a map or otherwise off map
@@ -358,7 +365,14 @@ function Astrolabe:GetCurrentPlayerPosition()
 		SetMapToCurrentZone();
 		x, y = GetPlayerMapPosition("player");
 		if ( x <= 0 and y <= 0 ) then
-			WorldMapZoomOutButton_OnClick();
+			-- attempt to zoom out once - logic copied from WorldMapZoomOutButton_OnClick()
+				if ( ZoomOut() ) then
+					-- do nothing
+				elseif ( GetCurrentMapZone() ~= WORLDMAP_WORLD_ID ) then
+					SetMapZoom(GetCurrentMapContinent());
+				else
+					SetMapZoom(WORLDMAP_WORLD_ID);
+				end
 			x, y = GetPlayerMapPosition("player");
 			if ( x <= 0 and y <= 0 ) then
 				-- we are in an instance without a map or otherwise off map
@@ -1050,10 +1064,7 @@ function Astrolabe:OnShow( frame )
 		SetMapToCurrentZone();
 	end
 	local M, F = Astrolabe:GetCurrentPlayerPosition();
-	if ( M and M >= 0 ) then
-		SetMapByID(M);
-		SetDungeonMapLevel(F);
-	else
+	if not ( M and M >= 0 ) then
 		frame:Hide();
 		return
 	end
