@@ -936,8 +936,8 @@ end
 function Astrolabe:AssociateIcon( icon, assocName )
 	argcheck(icon, 2, "table");
 	argcheck(assocName, 3, "string", "nil");
-	self.IconAssociations = assocName;
-	EdgeRangeMultiplier[icon] = EdgeRangeMultiplier[assocName]; -- update the icon's edge multiplier
+	self.IconAssociations[icon] = assocName;
+	self.EdgeRangeMultiplier[icon] = self.EdgeRangeMultiplier[assocName]; -- update the icon's edge multiplier
 	self.ForceNextUpdate = true; -- force a redraw
 end
 
