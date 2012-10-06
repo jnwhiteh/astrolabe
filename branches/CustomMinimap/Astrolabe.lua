@@ -941,6 +941,10 @@ function Astrolabe:AssociateIcon( icon, assocName )
 	self.ForceNextUpdate = true; -- force a redraw
 end
 
+function Astrolabe:GetIconAssociation( icon )
+	return self.IconAssociations[icon];
+end
+
 function Astrolabe:SetEdgeRangeMultiplier( multiplier, assocName )
 	argcheck(multiplier, 2, "number", "nil");
 	argcheck(assocName, 3, "string", "nil");
@@ -970,10 +974,13 @@ function Astrolabe:SetEdgeRangeMultiplier( multiplier, assocName )
 	self.ForceNextUpdate = true; -- force a redraw
 end
 
+function Astrolabe:GetEdgeRangeMultiplier( assocOrIcon )
+	argcheck(assocOrIcon, 2, "table", "string", "nil");
+	return rawget(self.EdgeRangeMultiplier, assocOrIcon) or self.DefaultEdgeRangeMultiplier;
+end
+
 function Astrolabe:Register_OnEdgeChanged_Callback( func, ident )
-	-- check argument types
 	argcheck(func, 2, "function");
-	
 	self.IconsOnEdge_GroupChangeCallbacks[func] = ident;
 end
 
