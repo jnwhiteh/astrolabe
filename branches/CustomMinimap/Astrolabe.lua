@@ -85,7 +85,16 @@ Astrolabe.MinimapIconCount = 0
 Astrolabe.ForceNextUpdate = false;
 Astrolabe.IconsOnEdgeChanged = false;
 Astrolabe.DefaultEdgeRangeMultiplier = 1;
-Astrolabe.EdgeRangeMultipliers = {};
+Astrolabe.EdgeRangeMultiplier = {};
+setmetatable(Astrolabe.EdgeRangeMultiplier,
+	{
+		__index = function(t,k)
+			local d = Astrolabe.DefaultEdgeRangeMultiplier; -- this works because we always update the Astrolabe local variable
+			if ( type(k) == "table" ) then t[k] = d; end;
+			return d;
+		end
+	}
+);
 
 -- This variable indicates whether we know of a visible World Map or not.  
 -- The state of this variable is controlled by the AstrolabeMapMonitor library.  
@@ -575,7 +584,6 @@ function Astrolabe:PlaceIconOnMinimap( icon, mapID, mapFloor, xPos, yPos )
 	iconData.dist = dist;
 	iconData.xDist = xDist;
 	iconData.yDist = yDist;
-	iconData.EdgeRangeMultiplier = self.EdgeRangeMultipliers[self.IconAssociations[icon]] or self.DefaultEdgeRangeMultiplier;
 	
 	minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
 	if ( minimapRotationEnabled ) then
@@ -587,7 +595,7 @@ function Astrolabe:PlaceIconOnMinimap( icon, mapID, mapFloor, xPos, yPos )
 	
 	-- place the icon on the Minimap and :Show() it
 	local map = self.Minimap
-	placeIconOnMinimap(map, map:GetZoom(), map:GetWidth(), map:GetHeight(), icon, dist, xDist, yDist, iconData.EdgeRangeMultiplier);
+	placeIconOnMinimap(map, map:GetZoom(), map:GetWidth(), map:GetHeight(), icon, dist, xDist, yDist, self.EdgeRangeMultiplier[icon]);
 	-- re-parent the icon if necessary
 	if ( icon.GetParent and icon.SetParent ) then
 		local iconParent = icon:GetParent()
@@ -634,6 +642,7 @@ function Astrolabe:RemoveIconFromMinimap( icon )
 end
 
 function Astrolabe:RemoveAllMinimapIcons( assocName )
+	argcheck(assocName, 2, "string", "nil");
 	if ( assocName == nil ) then -- remove all icons
 		self:DumpNewIconsCache();
 		local MinimapIcons = self.MinimapIcons;
@@ -647,8 +656,8 @@ function Astrolabe:RemoveAllMinimapIcons( assocName )
 		self.processingFrame:Hide();
 	
 	else -- remove just icons that match the specified association
-		for icon, assoc in pairs(self.IconAssociations) do
-			if ( assoc == assocName ) then
+		for icon, iconAssoc in pairs(self.IconAssociations) do
+			if ( iconAssoc == assocName ) then
 				self:RemoveIconFromMinimap(icon)
 			end
 		end
@@ -670,6 +679,8 @@ do
 	local incrementalUpdateThread
 	
 	local function UpdateMinimapIconPositions( self )
+		-- cache a reference to EdgeRangeMultiplier, for performance
+		local EdgeRangeMultiplier = self.EdgeRangeMultiplier;
 		yield()
 		
 		while ( true ) do
@@ -704,7 +715,7 @@ do
 						numPerCycle = numPerCycle * 2
 						local count = 0
 						for icon, data in pairs(self.MinimapIcons) do
-							placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, data.dist, data.xDist, data.yDist, data.EdgeRangeMultiplier);
+							placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, data.dist, data.xDist, data.yDist, EdgeRangeMultiplier[icon]);
 							
 							count = count + 1
 							if ( count > numPerCycle ) then
@@ -731,7 +742,7 @@ do
 							local xDist = data.xDist - xDelta;
 							local yDist = data.yDist - yDelta;
 							local dist = sqrt(xDist*xDist + yDist*yDist);
-							placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, dist, xDist, yDist, data.EdgeRangeMultiplier);
+							placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, dist, xDist, yDist, EdgeRangeMultiplier[icon]);
 							
 							data.dist = dist;
 							data.xDist = xDist;
@@ -798,6 +809,8 @@ do
 	local fullUpdateThread
 	
 	local function CalculateMinimapIconPositions( self )
+		-- cache a reference to EdgeRangeMultiplier, for performance
+		local EdgeRangeMultiplier = self.EdgeRangeMultiplier;
 		yield()
 		
 		while ( true ) do
@@ -828,7 +841,7 @@ do
 				for icon, data in pairs(self.MinimapIcons) do
 					local dist, xDist, yDist = self:ComputeDistance(M, F, x, y, data.mapID, data.mapFloor, data.xPos, data.yPos);
 					if ( dist ) then
-						placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, dist, xDist, yDist, data.EdgeRangeMultiplier);
+						placeIconOnMinimap(Minimap, currentZoom, mapWidth, mapHeight, icon, dist, xDist, yDist, EdgeRangeMultiplier[icon]);
 						
 						data.dist = dist;
 						data.xDist = xDist;
@@ -921,32 +934,40 @@ function Astrolabe:GetDirectionToIcon( icon )
 end
 
 function Astrolabe:AssociateIcon( icon, assocName )
-	assert(3, icon ~= nil, "Astrolabe:AssociateIcon( icon, addon ) - icon cannot be nil");
-	self.IconAssociations[icon] = assocName;
+	argcheck(icon, 2, "table");
+	argcheck(assocName, 3, "string", "nil");
+	self.IconAssociations = assocName;
+	EdgeRangeMultiplier[icon] = EdgeRangeMultiplier[assocName]; -- update the icon's edge multiplier
+	self.ForceNextUpdate = true; -- force a redraw
 end
 
 function Astrolabe:SetEdgeRangeMultiplier( multiplier, assocName )
-	argcheck(multiplier, 2, "number");
-	assert(3, multiplier > 0, "Astrolabe:SetEdgeRangeMultiplier( multiplier, [assocName] ) - mutliplier must be greater than zero");
+	argcheck(multiplier, 2, "number", "nil");
+	argcheck(assocName, 3, "string", "nil");
+	assert(3, (multiplier or assocName), "Astrolabe:SetEdgeRangeMultiplier( multiplier, [assocName] ) - at least one argument must be specificed");
+	assert(3, (not multiplier or multiplier > 0), "Astrolabe:SetEdgeRangeMultiplier( multiplier, [assocName] ) - mutliplier must be greater than zero");
 	
+	local EdgeRangeMultiplier = self.EdgeRangeMultiplier;
+	local IconAssociations = self.IconAssociations;
 	if ( assocName == nil ) then
 		-- set the default multiplier
 		self.DefaultEdgeRangeMultiplier = multiplier;
+		for icon in pairs(EdgeRangeMultiplier) do
+			local iconAssoc = IconAssociations[icon];
+			if ( type(icon) == "table" and (not iconAssoc or rawget(EdgeRangeMultiplier, iconAssoc) == nil) ) then
+				EdgeRangeMultiplier[icon] = multiplier;
+			end
+		end
 	else
 		-- set the multiplier for specific icons
-		self.EdgeRangeMultipliers[assocName] = multiplier;
-	end
-	local IconAssociations = self.IconAssociations;
-	for icon, data in pairs(self.MinimapIcons) do
-		if ( IconAssociations[icon] == assocName ) then
-			data.EdgeRangeMultiplier = multiplier;
+		EdgeRangeMultiplier[assocName] = multiplier;
+		for icon, iconAssoc in pairs(IconAssociations) do
+			if ( iconAssoc == assocName ) then
+				EdgeRangeMultiplier[icon] = multiplier;
+			end
 		end
 	end
-	for icon, data in pairs(AddedOrUpdatedIcons) do
-		if ( IconAssociations[icon] == assocName ) then
-			data.EdgeRangeMultiplier = multiplier;
-		end
-	end
+	self.ForceNextUpdate = true; -- force a redraw
 end
 
 function Astrolabe:Register_OnEdgeChanged_Callback( func, ident )
@@ -1206,11 +1227,11 @@ local function activate( newInstance, oldInstance )
 		newInstance.MinimapIconCount = iconCount
 		
 		-- explicity carry over our Minimap reference, or create it if we don't already have one
-		newInstance.Minimap = oldInstance.Minimap or Minimap
+		newInstance.Minimap = oldInstance.Minimap or _G.Minimap
 		
 		Astrolabe = oldInstance;
 	else
-		newInstance.Minimap = Minimap
+		newInstance.Minimap = _G.Minimap
 		local frame = CreateFrame("Frame");
 		newInstance.processingFrame = frame;
 	end
