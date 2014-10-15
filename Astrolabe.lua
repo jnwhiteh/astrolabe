@@ -1248,16 +1248,18 @@ local function activate( newInstance, oldInstance )
 		newInstance.HarvestedMapData = { VERSION = HARVESTED_DATA_VERSION };
 		local HarvestedMapData = newInstance.HarvestedMapData;
 		
-		newInstance.ContinentList = { GetMapContinents() };
-		for C in pairs(newInstance.ContinentList) do
-			local zones = { GetMapZones(C) };
-			newInstance.ContinentList[C] = zones;
-			SetMapZoom(C, 0);
-			zones[0] = GetCurrentMapAreaID();
+		local continents = {GetMapContinents()};
+		newInstance.ContinentList = {};
+		for C = 1, (#continents / 2) do
+			local zones = {GetMapZones(C)};
+			newInstance.ContinentList[C] = {};
+			SetMapZoom(C);
 			harvestMapData(HarvestedMapData);
-			for Z in ipairs(zones) do
-				SetMapZoom(C, Z);
-				zones[Z] = GetCurrentMapAreaID();
+			local contZoneList = newInstance.ContinentList[C];
+			contZoneList[0] = continents[C*2 - 1];
+			for Z = 1, (#zones / 2) do
+				contZoneList[Z] = zones[Z*2 - 1];
+				SetMapByID(contZoneList[Z]);
 				harvestMapData(HarvestedMapData);
 			end
 		end
