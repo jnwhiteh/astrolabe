@@ -125,7 +125,7 @@ local issecurevariable = issecurevariable
 local real_GetCurrentMapAreaID = GetCurrentMapAreaID
 local function GetCurrentMapAreaID()
 	local id = real_GetCurrentMapAreaID();
-	if ( id < 0 and GetCurrentMapContinent() == WORLDMAP_WORLD_ID ) then
+	if ( id < 0 and GetCurrentMapContinent() == WORLDMAP_AZEROTH_ID ) then
 		return 0;
 	end
 	return id;
@@ -336,10 +336,10 @@ function Astrolabe:GetUnitPosition( unit, noMapChange )
 			-- attempt to zoom out once - logic copied from WorldMapZoomOutButton_OnClick()
 				if ( ZoomOut() ) then
 					-- do nothing
-				elseif ( GetCurrentMapZone() ~= WORLDMAP_WORLD_ID ) then
+				elseif ( GetCurrentMapZone() ~= WORLDMAP_AZEROTH_ID ) then
 					SetMapZoom(GetCurrentMapContinent());
 				else
-					SetMapZoom(WORLDMAP_WORLD_ID);
+					SetMapZoom(WORLDMAP_AZEROTH_ID);
 				end
 			x, y = GetPlayerMapPosition(unit);
 			if ( x <= 0 and y <= 0 ) then
@@ -380,10 +380,10 @@ function Astrolabe:GetCurrentPlayerPosition()
 			-- attempt to zoom out once - logic copied from WorldMapZoomOutButton_OnClick()
 				if ( ZoomOut() ) then
 					-- do nothing
-				elseif ( GetCurrentMapZone() ~= WORLDMAP_WORLD_ID ) then
+				elseif ( GetCurrentMapZone() ~= WORLDMAP_AZEROTH_ID ) then
 					SetMapZoom(GetCurrentMapContinent());
 				else
-					SetMapZoom(WORLDMAP_WORLD_ID);
+					SetMapZoom(WORLDMAP_AZEROTH_ID);
 				end
 			x, y = GetPlayerMapPosition("player");
 			if ( x <= 0 and y <= 0 ) then
@@ -1268,6 +1268,87 @@ local function activate( newInstance, oldInstance )
 			if not ( HarvestedMapData[id] ) then
 				if ( SetMapByID(id) ) then
 					harvestMapData(HarvestedMapData);
+				end
+			end
+		end
+		
+		-- worldMapIDs who have the bit 2 flag set cannot be displayed via SetMapByID and therefore will get no information from the above code.
+		-- We work around this by remapping them where possible since their characteristics usually are based off another worldMapID anyway.
+		local HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS = {
+			[681] = HarvestedMapData[544], --["TheLostIsles_terrain1"] = "TheLostIsles",
+			[682] = HarvestedMapData[544], --["TheLostIsles_terrain2"] = "TheLostIsles",
+			[683] = HarvestedMapData[606], --["Hyjal_terrain1"] = "Hyjal",
+			[748] = HarvestedMapData[720], --["Uldum_terrain1"] = "Uldum",
+			[770] = HarvestedMapData[700], --["TwilightHighlands_terrain1"] = "TwilightHighlands",
+			[907] = HarvestedMapData[141], --["Dustwallow_terrain1"] = "Dustwallow",
+			[910] = HarvestedMapData[857], --["Krasarang_terrain1"] = "Krasarang",
+			-- In the following 2 cases, there is no existing map ID with these properties.
+			-- Additionally, the client can access this map by itself but only after a /reload (and only one of the two maps per faction of requesting character)
+			-- It is unknown why this is the case; it is probably a bug with the game.
+			[971] = {
+				["mapName"] = "garrisonsmvalliance",
+				["cont"] = 7,
+				["zone"] = 7,
+				["numFloors"] = 0,
+				[0] = {},
+			},
+			[976] = {
+				["mapName"] = "garrisonffhorde",
+				["cont"] = 7,
+				["zone"] = 3,
+				["numFloors"] = 0,
+				[0] = {},
+			},
+			[992] = HarvestedMapData[19], -- ["BlastedLands_terrain1"] = "BlastedLands",
+		}
+		
+		-- While MapID 971 is not accessible by most of the API, we -can- get the coordinate info, so we don't have to hardcode that.
+		local _, _, _, TLx, BRx, TLy, BRy, _, _, _ = GetAreaMapInfo(971)
+		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[971][0].TLx = TLx
+		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[971][0].TLy = TLy
+		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[971][0].BRx = BRx
+		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[971][0].BRy = BRy
+		
+		-- Alternate mapIDs for 971 (Alliance Garrison)
+		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[973] = HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[971]
+		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[974] = HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[971]
+		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[975] = HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[971]
+		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[991] = HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[971]
+		
+		-- While MapID 976 is not accessible by most of the API, we -can- get the coordinate info, so we don't have to hardcode that.
+		_, _, _, TLx, BRx, TLy, BRy, _, _, _ = GetAreaMapInfo(976)
+		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[976][0].TLx = TLx
+		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[976][0].TLy = TLy
+		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[976][0].BRx = BRx
+		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[976][0].BRy = BRy
+		
+		-- Alternate mapIDs for 976 (Horde Garrison)
+		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[980] = HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[976]
+		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[981] = HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[976]
+		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[982] = HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[976]
+		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[990] = HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[976]
+		
+		-- Distribute hardcoded (and specially harvested in the case of 971/976) information to HarvestedMapData
+		for id, data in pairs(HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS) do
+			if not HarvestedMapData[id] then
+				-- Copy table contents
+				HarvestedMapData[id] = {}
+				HarvestedMapData[id].mapName = data.mapName
+				HarvestedMapData[id].cont = data.cont
+				HarvestedMapData[id].zone = data.zone
+				HarvestedMapData[id].numFloors = data.numFloors
+				HarvestedMapData[id].hiddenFloor = data.hiddenFloor
+				-- Copy floors
+				if ( data.numFloors ) then
+					for f = 0, data.numFloors do
+						if ( data[f] and data[f].TLx and data[f].TLy and data[f].BRx and data[f].BRy ) then
+							HarvestedMapData[id][f] = {}
+							HarvestedMapData[id][f].TLx = data[f].TLx
+							HarvestedMapData[id][f].TLy = data[f].TLy
+							HarvestedMapData[id][f].BRx = data[f].BRx
+							HarvestedMapData[id][f].BRy = data[f].BRy
+						end
+					end
 				end
 			end
 		end
