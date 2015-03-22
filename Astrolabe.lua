@@ -1271,87 +1271,6 @@ local function activate( newInstance, oldInstance )
 				end
 			end
 		end
-		
-		-- worldMapIDs who have the bit 2 flag set cannot be displayed via SetMapByID and therefore will get no information from the above code.
-		-- We work around this by remapping them where possible since their characteristics usually are based off another worldMapID anyway.
-		local HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS = {
-			[681] = HarvestedMapData[544], --["TheLostIsles_terrain1"] = "TheLostIsles",
-			[682] = HarvestedMapData[544], --["TheLostIsles_terrain2"] = "TheLostIsles",
-			[683] = HarvestedMapData[606], --["Hyjal_terrain1"] = "Hyjal",
-			[748] = HarvestedMapData[720], --["Uldum_terrain1"] = "Uldum",
-			[770] = HarvestedMapData[700], --["TwilightHighlands_terrain1"] = "TwilightHighlands",
-			[907] = HarvestedMapData[141], --["Dustwallow_terrain1"] = "Dustwallow",
-			[910] = HarvestedMapData[857], --["Krasarang_terrain1"] = "Krasarang",
-			-- In the following 2 cases, there is no existing map ID with these properties.
-			-- Additionally, the client can access this map by itself but only after a /reload (and only one of the two maps per faction of requesting character)
-			-- It is unknown why this is the case; it is probably a bug with the game.
-			[971] = {
-				["mapName"] = "garrisonsmvalliance",
-				["cont"] = 7,
-				["zone"] = 7,
-				["numFloors"] = 0,
-				[0] = {},
-			},
-			[976] = {
-				["mapName"] = "garrisonffhorde",
-				["cont"] = 7,
-				["zone"] = 3,
-				["numFloors"] = 0,
-				[0] = {},
-			},
-			[992] = HarvestedMapData[19], -- ["BlastedLands_terrain1"] = "BlastedLands",
-		}
-		
-		-- While MapID 971 is not accessible by most of the API, we -can- get the coordinate info, so we don't have to hardcode that.
-		local _, _, _, TLx, BRx, TLy, BRy, _, _, _ = GetAreaMapInfo(971)
-		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[971][0].TLx = TLx
-		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[971][0].TLy = TLy
-		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[971][0].BRx = BRx
-		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[971][0].BRy = BRy
-		
-		-- Alternate mapIDs for 971 (Alliance Garrison)
-		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[973] = HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[971]
-		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[974] = HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[971]
-		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[975] = HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[971]
-		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[991] = HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[971]
-		
-		-- While MapID 976 is not accessible by most of the API, we -can- get the coordinate info, so we don't have to hardcode that.
-		_, _, _, TLx, BRx, TLy, BRy, _, _, _ = GetAreaMapInfo(976)
-		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[976][0].TLx = TLx
-		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[976][0].TLy = TLy
-		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[976][0].BRx = BRx
-		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[976][0].BRy = BRy
-		
-		-- Alternate mapIDs for 976 (Horde Garrison)
-		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[980] = HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[976]
-		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[981] = HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[976]
-		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[982] = HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[976]
-		HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[990] = HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS[976]
-		
-		-- Distribute hardcoded (and specially harvested in the case of 971/976) information to HarvestedMapData
-		for id, data in pairs(HARDCODED_MAP_INFORMATION_FOR_UNOBTAINABLE_MAPIDS) do
-			if not HarvestedMapData[id] then
-				-- Copy table contents
-				HarvestedMapData[id] = {}
-				HarvestedMapData[id].mapName = data.mapName
-				HarvestedMapData[id].cont = data.cont
-				HarvestedMapData[id].zone = data.zone
-				HarvestedMapData[id].numFloors = data.numFloors
-				HarvestedMapData[id].hiddenFloor = data.hiddenFloor
-				-- Copy floors
-				if ( data.numFloors ) then
-					for f = 0, data.numFloors do
-						if ( data[f] and data[f].TLx and data[f].TLy and data[f].BRx and data[f].BRy ) then
-							HarvestedMapData[id][f] = {}
-							HarvestedMapData[id][f].TLx = data[f].TLx
-							HarvestedMapData[id][f].TLy = data[f].TLy
-							HarvestedMapData[id][f].BRx = data[f].BRx
-							HarvestedMapData[id][f].BRy = data[f].BRy
-						end
-					end
-				end
-			end
-		end
 	end
 	
 	local Minimap = newInstance.Minimap
@@ -1465,6 +1384,84 @@ WorldMapSize = {
 }
 
 MicroDungeonSize = {}
+
+-- SetMapByID does not work for mapID 971 or 976 during the first UI load since the client was started, so we have to hardcode their information.
+local HARDCODED_MAP_INFORMATION = {
+    [971] = {
+        ["mapName"] = "garrisonsmvalliance",
+        ["cont"] = 7,
+        ["zone"] = 7,
+        ["numFloors"] = 0,
+        [0] = {},
+    },
+    [976] = {
+        ["mapName"] = "garrisonffhorde",
+        ["cont"] = 7,
+        ["zone"] = 3,
+        ["numFloors"] = 0,
+        [0] = {},
+    },
+}
+-- Distribute data from hardcoding to their maps
+for mapID, data in pairs(HARDCODED_MAP_INFORMATION) do
+    -- Only distribute the information if we didn't get it through other means
+    if ( not Astrolabe.HarvestedMapData[mapID] ) then
+        -- Copy table contents
+        Astrolabe.HarvestedMapData[mapID] = {}
+        Astrolabe.HarvestedMapData[mapID].mapName = data.mapName
+        Astrolabe.HarvestedMapData[mapID].cont = data.cont
+        Astrolabe.HarvestedMapData[mapID].zone = data.zone
+        Astrolabe.HarvestedMapData[mapID].numFloors = data.numFloors
+        Astrolabe.HarvestedMapData[mapID].hiddenFloor = data.hiddenFloor
+        Astrolabe.HarvestedMapData[mapID][0] = {}
+        -- While these mapIDs are not accessible by most of the API, we -can- get base floor coordinate info, so we don't have to hardcode that.
+        local _, _, _, TLx, BRx, TLy, BRy, _, _, _ = GetAreaMapInfo(mapID)
+        Astrolabe.HarvestedMapData[mapID][0].TLx = TLx
+        Astrolabe.HarvestedMapData[mapID][0].TLy = TLy
+        Astrolabe.HarvestedMapData[mapID][0].BRx = BRx
+        Astrolabe.HarvestedMapData[mapID][0].BRy = BRy
+    end
+end
+
+-- worldMapIDs who have the bit 2 flag set cannot be displayed via SetMapByID and therefore will get no information from the above code.
+-- We work around this by remapping them where possible since their characteristics usually are based off another worldMapID anyway.
+local MAPS_TO_REMAP = {
+    [19] = {992}, -- BlastedLands_terrain1 = BlastedLands
+    [141] = {907}, -- Dustwallow = Dustwallow_terrain1
+    [544] = {681, 682}, -- TheLostIsles = TheLostIsles_terrain1, TheLostIsles_terrain2
+    [606] = {683}, -- Hyjal = Hyjal_terrain1
+    [700] = {770}, -- TwilightHighlands = TwilightHighlands_terrain1
+    [720] = {748}, -- Uldum = Uldum_terrain1
+    [857] = {910}, -- Krasarang = Krasarang_terrain1
+    [971] = {973, 974, 975, 991}, -- garrisonsmvalliance = garrisonsmvalliance_tier1, garrisonsmvalliance_tier3, garrisonsmvalliance_tier4, garrisonsmvalliance_tier2
+    [976] = {980, 981, 982, 990}, -- garrisonffhorde = garrisonffhorde_tier1, garrisonffhorde_tier3, garrisonffhorde_tier4, garrisonffhorde_tier2
+}
+-- Distribute data from valid maps to maps needing remapping
+for validMapID, remapMapIDs in pairs(MAPS_TO_REMAP) do
+    for _, currentRemapMapIDs in pairs(remapMapIDs) do
+        if ( Astrolabe.HarvestedMapData[validMapID] and not Astrolabe.HarvestedMapData[currentRemapMapIDs] ) then
+            -- Copy table contents
+            Astrolabe.HarvestedMapData[id] = {}
+            Astrolabe.HarvestedMapData[id].mapName = data.mapName
+            Astrolabe.HarvestedMapData[id].cont = data.cont
+            Astrolabe.HarvestedMapData[id].zone = data.zone
+            Astrolabe.HarvestedMapData[id].numFloors = data.numFloors
+            Astrolabe.HarvestedMapData[id].hiddenFloor = data.hiddenFloor
+            -- Copy floors
+            if ( data.numFloors ) then
+                for f = 0, data.numFloors do
+                    if ( data[f] and data[f].TLx and data[f].TLy and data[f].BRx and data[f].BRy ) then
+                        Astrolabe.HarvestedMapData[id][f] = {}
+                        Astrolabe.HarvestedMapData[id][f].TLx = data[f].TLx
+                        Astrolabe.HarvestedMapData[id][f].TLy = data[f].TLy
+                        Astrolabe.HarvestedMapData[id][f].BRx = data[f].BRx
+                        Astrolabe.HarvestedMapData[id][f].BRy = data[f].BRy
+                    end
+                end
+            end
+        end
+    end
+end
 
 
 --------------------------------------------------------------------------------------------------------------
