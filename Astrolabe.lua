@@ -1666,7 +1666,7 @@ Astrolabe.HarvestedMapData.VERSION = harvestedDataVersion
 -- micro dungeons
 for _, ID in ipairs(GetDungeonMaps()) do
 	local floorIndex, minX, maxX, minY, maxY, terrainMapID, parentWorldMapID, flags = GetDungeonMapInfo(ID);
-	if ( band(flags, DUNGEONMAP_MICRO_DUNGEON) == DUNGEONMAP_MICRO_DUNGEON ) then
+	if ( (WorldMapSize[parentWorldMapID] and not WorldMapSize[parentWorldMapID][floorIndex]) or (band(flags, DUNGEONMAP_MICRO_DUNGEON) == DUNGEONMAP_MICRO_DUNGEON) ) then
 		local TLx, TLy, BRx, BRy = -maxX, -maxY, -minX, -minY
 		-- apply any necessary transforms
 		local transformApplied = false
