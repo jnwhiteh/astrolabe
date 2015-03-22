@@ -1697,6 +1697,11 @@ end
 -- done with Transforms data
 TRANSFORMS = nil
 
+-- Note: There is a potential bug that could come up here in the future.
+-- Example: ingame API returns mapID 857 floor 2 for a micro dungeon, while GetDungeonMapInfo lists the mapID as 910.
+-- Because Astrolabe sets up micro dungeon data using originSystems, there is no issue (857 and 910 share an originSystem) with any data at this point in time (Patch 6.1).
+-- However, the issue could surface in the future if Blizzard mislabeled an originSystem, hence the note placed here.
+
 for _, data in pairs(MicroDungeonSize) do
 	setmetatable(data, zeroData);
 end
