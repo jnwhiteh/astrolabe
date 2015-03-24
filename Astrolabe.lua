@@ -143,7 +143,7 @@ local function assert(level,condition,message)
 end
 
 local function argcheck(value, num, ...)
-	assert(1, type(num) == "number", "Bad argument #2 to 'argcheck' (number expected, got " .. type(level) .. ")")
+	assert(1, type(num) == "number", "Bad argument #2 to 'argcheck' (number expected, got " .. type(num) .. ")")
 	
 	for i=1,select("#", ...) do
 		if type(value) == select(i, ...) then return end
@@ -1438,24 +1438,29 @@ local MAPS_TO_REMAP = {
 }
 -- Distribute data from valid maps to maps needing remapping
 for validMapID, remapMapIDs in pairs(MAPS_TO_REMAP) do
-    for _, currentRemapMapIDs in pairs(remapMapIDs) do
-        if ( Astrolabe.HarvestedMapData[validMapID] and not Astrolabe.HarvestedMapData[currentRemapMapIDs] ) then
+    for _, currentRemapMapID in pairs(remapMapIDs) do
+        if ( Astrolabe.HarvestedMapData[validMapID] and not Astrolabe.HarvestedMapData[currentRemapMapID] ) then
+            -- Speed up accesses
+            local oldTable = Astrolabe.HarvestedMapData[validMapID]
+            Astrolabe.HarvestedMapData[currentRemapMapID] = {}
+            local newTable = Astrolabe.HarvestedMapData[currentRemapMapID]
+            
             -- Copy table contents
-            Astrolabe.HarvestedMapData[id] = {}
-            Astrolabe.HarvestedMapData[id].mapName = data.mapName
-            Astrolabe.HarvestedMapData[id].cont = data.cont
-            Astrolabe.HarvestedMapData[id].zone = data.zone
-            Astrolabe.HarvestedMapData[id].numFloors = data.numFloors
-            Astrolabe.HarvestedMapData[id].hiddenFloor = data.hiddenFloor
+            newTable.mapName = oldTable.mapName
+            newTable.cont = oldTable.cont
+            newTable.zone = oldTable.zone
+            newTable.numFloors = oldTable.numFloors
+            newTable.hiddenFloor = oldTable.hiddenFloor
+            
             -- Copy floors
-            if ( data.numFloors ) then
-                for f = 0, data.numFloors do
-                    if ( data[f] and data[f].TLx and data[f].TLy and data[f].BRx and data[f].BRy ) then
-                        Astrolabe.HarvestedMapData[id][f] = {}
-                        Astrolabe.HarvestedMapData[id][f].TLx = data[f].TLx
-                        Astrolabe.HarvestedMapData[id][f].TLy = data[f].TLy
-                        Astrolabe.HarvestedMapData[id][f].BRx = data[f].BRx
-                        Astrolabe.HarvestedMapData[id][f].BRy = data[f].BRy
+            if ( oldTable.numFloors ) then
+                for f = 0, oldTable.numFloors do
+                    if ( oldTable[f] and oldTable[f].TLx and oldTable[f].TLy and oldTable[f].BRx and oldTable[f].BRy ) then
+                        newTable[f] = {}
+                        newTable[f].TLx = oldTable[f].TLx
+                        newTable[f].TLy = oldTable[f].TLy
+                        newTable[f].BRx = oldTable[f].BRx
+                        newTable[f].BRy = oldTable[f].BRy
                     end
                 end
             end
