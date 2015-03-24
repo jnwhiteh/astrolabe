@@ -1258,8 +1258,10 @@ local function activate( newInstance, oldInstance )
 			local contZoneList = newInstance.ContinentList[C];
 			contZoneList[0] = continents[C*2 - 1];
 			for Z = 1, (#zones / 2) do
-				contZoneList[Z] = zones[Z*2 - 1];
-				SetMapByID(contZoneList[Z]);
+				local areaId = zones[Z*2 - 1];
+				SetMapByID(areaId);
+				local zoneKey = GetCurrentMapZone();
+				contZoneList[zoneKey] = areaId
 				harvestMapData(HarvestedMapData);
 			end
 		end
@@ -1725,3 +1727,82 @@ setmetatable(WorldMapSize, zeroData); -- setup the metatable so that invalid map
 local AstrolabeMapMonitor = DongleStub("AstrolabeMapMonitor");
 AstrolabeMapMonitor:RegisterAstrolabeLibrary(Astrolabe, LIBRARY_VERSION_MAJOR);
 
+------------- Added by Ludovicus ------------
+Astrolabe.WorldMapSize = WorldMapSize
+Astrolabe.MicroDungeonSize = MicroDungeonSize
+Astrolabe.zeroData = zeroData
+Astrolabe.activate = activate
+
+-- Map Clones as per MMOSimca
+WorldMapSize[681] = WorldMapSize[544], --["TheLostIsles_terrain1"] = "TheLostIsles",
+WorldMapSize[682] = WorldMapSize[544], --["TheLostIsles_terrain2"] = "TheLostIsles",
+WorldMapSize[683] = WorldMapSize[606], --["Hyjal_terrain1"] = "Hyjal",
+WorldMapSize[748] = WorldMapSize[720], --["Uldum_terrain1"] = "Uldum",
+WorldMapSize[770] = WorldMapSize[700], --["TwilightHighlands_terrain1"] = "TwilightHighlands",
+WorldMapSize[907] = WorldMapSize[141], --["Dustwallow_terrain1"] = "Dustwallow",
+WorldMapSize[910] = WorldMapSize[857], --["Krasarang_terrain1"] = "Krasarang",
+WorldMapSize[992] = WorldMapSize[19], -- ["BlastedLands_terrain1"] = "BlastedLands",
+
+-- Hidden Map Floors significant in questlines
+-- Dun Morogh
+WorldMapSize[27][10] = { xOffset =  -500.500000, height = 380.000000, yOffset =  5242.000000, width = 570.000000 , __index = zeroDataFunc }; -- Gnome starting zone!
+
+-- Vale of Eternal Blossoms
+WorldMapSize[811][3] = { xOffset =  -114.999512, height = 173.333984, yOffset =  -726.333008, width = 260.000977 , __index = zeroDataFunc };
+WorldMapSize[811][4] = { xOffset =   -87.500000, height = 210.000000, yOffset =  -693.750000, width = 315.000000 , __index = zeroDataFunc }; 
+
+-- Krasarang Wilds floors for the mine
+WorldMapSize[857][1] = { xOffset =   994.375000, height = 175.000000, yOffset =   750.000000, width = 262.500000 , __index = zeroDataFunc };
+WorldMapSize[857][2] = { xOffset =  1135.469971, height = 335.000732, yOffset =   885.000366, width = 502.500977 , __index = zeroDataFunc };
+WorldMapSize[857][3] = { xOffset =  1009.369995, height = 141.666016, yOffset =   763.333008, width = 212.499023 , __index = zeroDataFunc };
+
+-- The Veiled Stair
+WorldMapSize[873][5] = { xOffset =   413.750000, height = 595.000000, yOffset = -1140.000000, width = 892.500000 , __index = zeroDataFunc };
+
+-- Frostfire Ridge
+WorldMapSize[941][1] = { xOffset = -5437.495117, height = 483.339844, yOffset = -6523.330078, width = 725.009766 , __index = zeroDataFunc }; -- Bladespire Citadel
+WorldMapSize[941][2] = { xOffset = -5479.995117, height = 423.339844, yOffset = -6537.330078, width = 635.009766 , __index = zeroDataFunc }; -- Bladespire Courtyard
+WorldMapSize[941][3] = { xOffset = -5645.000000, height = 240.000000, yOffset = -6710.000000, width = 360.000000 , __index = zeroDataFunc }; -- Bladespire Throne
+WorldMapSize[941][4] = { xOffset = -5516.000000, height = 410.000000, yOffset = -6540.000000, width = 615.000000 , __index = zeroDataFunc }; -- Sootstained Mine
+WorldMapSize[941][5] = { xOffset = -3296.250000, height = 295.000000, yOffset = -5475.000000, width = 442.500000 , __index = zeroDataFunc }; -- Hunter's Hall
+WorldMapSize[941][6] = { xOffset = -3296.250000, height = 295.000000, yOffset = -5475.000000, width = 442.500000 , __index = zeroDataFunc }; -- Grulloc's Lair 1
+WorldMapSize[941][7] = { xOffset = -4147.500000, height = 550.000000, yOffset = -6650.000000, width = 825.000000 , __index = zeroDataFunc }; -- Grulloc's Lair 2
+
+-- Talador@Draenor
+WorldMapSize[946][13] = { xOffset = -1962.50000, height = 350.000000, yOffset = -1615.000000, width = 525.000000 , __index = zeroDataFunc }; -- Tomb of Lights
+WorldMapSize[946][14] = { xOffset = -3092.50000, height = 360.000000, yOffset = -2005.000000, width = 550.000000 , __index = zeroDataFunc }; -- Court of Souls
+
+-- Shadowmoon Valley@Draenor
+WorldMapSize[947][15] = { xOffset =  -583.75000, height = 231.000000, yOffset = -1030.750000, width = 346.500000 , __index = zeroDataFunc }; -- Bloodthorn Cave
+
+-- Gorgrond
+WorldMapSize[949][17] = { xOffset = -1013.75000, height = 165.000000, yOffset = -4330.000000, width = 247.500000 , __index = zeroDataFunc }; -- Moira's Bastion
+WorldMapSize[949][19] = { xOffset = -1375.75000, height = 265.000000, yOffset = -6950.000000, width = 397.500000 , __index = zeroDataFunc }; -- Fissure of Fury
+
+-- Nagrand@Draenor
+WorldMapSize[950][10] = { xOffset = -3895.00000, height = 370.000000, yOffset = -2510.500000, width = 555.000000 , __index = zeroDataFunc }; -- The Master's Cavern
+WorldMapSize[950][11] = { xOffset = -5181.24512, height = 245.839844, yOffset = -2989.580078, width = 368.759766 , __index = zeroDataFunc }; -- Vault of the Titan
+WorldMapSize[950][12] = { xOffset = -6075.00000, height = 400.000000, yOffset = -2322.500000, width = 600.000000 , __index = zeroDataFunc }; -- The Underpale
+
+-- TanaanJungleIntro
+WorldMapSize[970][1]  = { xOffset =  2720.379883, height = 303.172852, yOffset = -4359.998535, width = 454.759766 , __index = zeroDataFunc }; -- Umbral Halls
+
+-- Alliance Garrison
+WorldMapSize[971]     = { xOffset = -545.8339844, height = 456.250000, yOffset = -2091.666992, width = 683.333984 , originSystem = 1116 , system = 1116, __index = zeroDataFunc };
+WorldMapSize[971][23] = { xOffset =  -31.0000000, height = 250.000000, yOffset = -1806.000000, width = 375.000000 , __index = zeroDataFunc }; 
+
+-- Horde Garrison
+WorldMapSize[976]     = { xOffset = -4855.416016, height = 468.750000, yOffset = -5814.530078, width = 702.083008 , originSystem = 1116 , system = 1116, __index = zeroDataFunc };
+WorldMapSize[976][27] = { xOffset = -4305.000000, height = 269.000000, yOffset = -5356.000000, width = 390.000000 , __index = zeroDataFunc };
+
+-- MMOSimca map clone IDs
+-- Alternate mapIDs for 971 (Alliance Garrison)
+WorldMapSize[973] = WorldMapSize[971]
+WorldMapSize[974] = WorldMapSize[971]
+WorldMapSize[975] = WorldMapSize[971]
+WorldMapSize[991] = WorldMapSize[971]
+ -- Alternate mapIDs for 976 (Horde Garrison)
+WorldMapSize[980] = WorldMapSize[976]
+WorldMapSize[981] = WorldMapSize[976]
+WorldMapSize[982] = WorldMapSize[976]
+WorldMapSize[990] = WorldMapSize[976]
