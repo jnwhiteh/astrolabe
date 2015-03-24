@@ -125,7 +125,7 @@ local issecurevariable = issecurevariable
 local real_GetCurrentMapAreaID = GetCurrentMapAreaID
 local function GetCurrentMapAreaID()
 	local id = real_GetCurrentMapAreaID();
-	if ( id < 0 and GetCurrentMapContinent() == WORLDMAP_WORLD_ID ) then
+	if ( id < 0 and GetCurrentMapContinent() == WORLDMAP_AZEROTH_ID ) then
 		return 0;
 	end
 	return id;
@@ -143,7 +143,7 @@ local function assert(level,condition,message)
 end
 
 local function argcheck(value, num, ...)
-	assert(1, type(num) == "number", "Bad argument #2 to 'argcheck' (number expected, got " .. type(level) .. ")")
+	assert(1, type(num) == "number", "Bad argument #2 to 'argcheck' (number expected, got " .. type(num) .. ")")
 	
 	for i=1,select("#", ...) do
 		if type(value) == select(i, ...) then return end
@@ -336,10 +336,10 @@ function Astrolabe:GetUnitPosition( unit, noMapChange )
 			-- attempt to zoom out once - logic copied from WorldMapZoomOutButton_OnClick()
 				if ( ZoomOut() ) then
 					-- do nothing
-				elseif ( GetCurrentMapZone() ~= WORLDMAP_WORLD_ID ) then
+				elseif ( GetCurrentMapZone() ~= WORLDMAP_AZEROTH_ID ) then
 					SetMapZoom(GetCurrentMapContinent());
 				else
-					SetMapZoom(WORLDMAP_WORLD_ID);
+					SetMapZoom(WORLDMAP_AZEROTH_ID);
 				end
 			x, y = GetPlayerMapPosition(unit);
 			if ( x <= 0 and y <= 0 ) then
@@ -380,10 +380,10 @@ function Astrolabe:GetCurrentPlayerPosition()
 			-- attempt to zoom out once - logic copied from WorldMapZoomOutButton_OnClick()
 				if ( ZoomOut() ) then
 					-- do nothing
-				elseif ( GetCurrentMapZone() ~= WORLDMAP_WORLD_ID ) then
+				elseif ( GetCurrentMapZone() ~= WORLDMAP_AZEROTH_ID ) then
 					SetMapZoom(GetCurrentMapContinent());
 				else
-					SetMapZoom(WORLDMAP_WORLD_ID);
+					SetMapZoom(WORLDMAP_AZEROTH_ID);
 				end
 			x, y = GetPlayerMapPosition("player");
 			if ( x <= 0 and y <= 0 ) then
@@ -1385,6 +1385,89 @@ WorldMapSize = {
 
 MicroDungeonSize = {}
 
+-- SetMapByID does not work for mapID 971 or 976 during the first UI load since the client was started, so we have to hardcode their information.
+local HARDCODED_MAP_INFORMATION = {
+    [971] = {
+        ["mapName"] = "garrisonsmvalliance",
+        ["cont"] = 7,
+        ["zone"] = 7,
+        ["numFloors"] = 0,
+        [0] = {},
+    },
+    [976] = {
+        ["mapName"] = "garrisonffhorde",
+        ["cont"] = 7,
+        ["zone"] = 3,
+        ["numFloors"] = 0,
+        [0] = {},
+    },
+}
+-- Distribute data from hardcoding to their maps
+for mapID, data in pairs(HARDCODED_MAP_INFORMATION) do
+    -- Only distribute the information if we didn't get it through other means
+    if ( not Astrolabe.HarvestedMapData[mapID] ) then
+        -- Copy table contents
+        Astrolabe.HarvestedMapData[mapID] = {}
+        Astrolabe.HarvestedMapData[mapID].mapName = data.mapName
+        Astrolabe.HarvestedMapData[mapID].cont = data.cont
+        Astrolabe.HarvestedMapData[mapID].zone = data.zone
+        Astrolabe.HarvestedMapData[mapID].numFloors = data.numFloors
+        Astrolabe.HarvestedMapData[mapID].hiddenFloor = data.hiddenFloor
+        Astrolabe.HarvestedMapData[mapID][0] = {}
+        -- While these mapIDs are not accessible by most of the API, we -can- get base floor coordinate info, so we don't have to hardcode that.
+        local _, _, _, TLx, BRx, TLy, BRy, _, _, _ = GetAreaMapInfo(mapID)
+        Astrolabe.HarvestedMapData[mapID][0].TLx = TLx
+        Astrolabe.HarvestedMapData[mapID][0].TLy = TLy
+        Astrolabe.HarvestedMapData[mapID][0].BRx = BRx
+        Astrolabe.HarvestedMapData[mapID][0].BRy = BRy
+    end
+end
+
+-- worldMapIDs who have the bit 2 flag set cannot be displayed via SetMapByID and therefore will get no information from the above code.
+-- We work around this by remapping them where possible since their characteristics usually are based off another worldMapID anyway.
+local MAPS_TO_REMAP = {
+    [19] = {992}, -- BlastedLands_terrain1 = BlastedLands
+    [141] = {907}, -- Dustwallow = Dustwallow_terrain1
+    [544] = {681, 682}, -- TheLostIsles = TheLostIsles_terrain1, TheLostIsles_terrain2
+    [606] = {683}, -- Hyjal = Hyjal_terrain1
+    [700] = {770}, -- TwilightHighlands = TwilightHighlands_terrain1
+    [720] = {748}, -- Uldum = Uldum_terrain1
+    [857] = {910}, -- Krasarang = Krasarang_terrain1
+    [971] = {973, 974, 975, 991}, -- garrisonsmvalliance = garrisonsmvalliance_tier1, garrisonsmvalliance_tier3, garrisonsmvalliance_tier4, garrisonsmvalliance_tier2
+    [976] = {980, 981, 982, 990}, -- garrisonffhorde = garrisonffhorde_tier1, garrisonffhorde_tier3, garrisonffhorde_tier4, garrisonffhorde_tier2
+}
+-- Distribute data from valid maps to maps needing remapping
+for validMapID, remapMapIDs in pairs(MAPS_TO_REMAP) do
+    for _, currentRemapMapID in pairs(remapMapIDs) do
+        if ( Astrolabe.HarvestedMapData[validMapID] and not Astrolabe.HarvestedMapData[currentRemapMapID] ) then
+            -- Speed up accesses
+            local oldTable = Astrolabe.HarvestedMapData[validMapID]
+            Astrolabe.HarvestedMapData[currentRemapMapID] = {}
+            local newTable = Astrolabe.HarvestedMapData[currentRemapMapID]
+            
+            -- Copy table contents
+            newTable.mapName = oldTable.mapName
+            newTable.cont = oldTable.cont
+            newTable.zone = oldTable.zone
+            newTable.numFloors = oldTable.numFloors
+            newTable.hiddenFloor = oldTable.hiddenFloor
+            
+            -- Copy floors
+            if ( oldTable.numFloors ) then
+                for f = 0, oldTable.numFloors do
+                    if ( oldTable[f] and oldTable[f].TLx and oldTable[f].TLy and oldTable[f].BRx and oldTable[f].BRy ) then
+                        newTable[f] = {}
+                        newTable[f].TLx = oldTable[f].TLx
+                        newTable[f].TLy = oldTable[f].TLy
+                        newTable[f].BRx = oldTable[f].BRx
+                        newTable[f].BRy = oldTable[f].BRy
+                    end
+                end
+            end
+        end
+    end
+end
+
 
 --------------------------------------------------------------------------------------------------------------
 -- Internal Data Table Setup
@@ -1585,7 +1668,7 @@ Astrolabe.HarvestedMapData.VERSION = harvestedDataVersion
 -- micro dungeons
 for _, ID in ipairs(GetDungeonMaps()) do
 	local floorIndex, minX, maxX, minY, maxY, terrainMapID, parentWorldMapID, flags = GetDungeonMapInfo(ID);
-	if ( band(flags, DUNGEONMAP_MICRO_DUNGEON) == DUNGEONMAP_MICRO_DUNGEON ) then
+	if ( (WorldMapSize[parentWorldMapID] and not WorldMapSize[parentWorldMapID][floorIndex]) or (band(flags, DUNGEONMAP_MICRO_DUNGEON) == DUNGEONMAP_MICRO_DUNGEON) ) then
 		local TLx, TLy, BRx, BRy = -maxX, -maxY, -minX, -minY
 		-- apply any necessary transforms
 		local transformApplied = false
@@ -1618,6 +1701,11 @@ end
 
 -- done with Transforms data
 TRANSFORMS = nil
+
+-- Note: There is a potential bug that could come up here in the future.
+-- Example: ingame API returns mapID 857 floor 2 for a micro dungeon, while GetDungeonMapInfo lists the mapID as 910.
+-- Because Astrolabe sets up micro dungeon data using originSystems, there is no issue (857 and 910 share an originSystem) with any data at this point in time (Patch 6.1).
+-- However, the issue could surface in the future if Blizzard mislabeled an originSystem, hence the note placed here.
 
 for _, data in pairs(MicroDungeonSize) do
 	setmetatable(data, zeroData);
